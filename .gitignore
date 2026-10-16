@@ -44,3 +44,7 @@ roadmap/
 **/.DS_Store
 
 .claude/komi
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
