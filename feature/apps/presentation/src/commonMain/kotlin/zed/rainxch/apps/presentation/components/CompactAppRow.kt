@@ -55,6 +55,7 @@ import zed.rainxch.githubstore.core.presentation.res.apps_ignore_updates
 import zed.rainxch.githubstore.core.presentation.res.apps_menu_item_active
 import zed.rainxch.githubstore.core.presentation.res.apps_skip_version_unskip
 import zed.rainxch.githubstore.core.presentation.res.install
+import zed.rainxch.githubstore.core.presentation.res.download_again
 import zed.rainxch.githubstore.core.presentation.res.pre_release_badge
 import zed.rainxch.githubstore.core.presentation.res.discard_pending_install
 import zed.rainxch.githubstore.core.presentation.res.variant_picker_open
@@ -146,7 +147,7 @@ fun CompactAppRow(
                 app.sourceHost?.let { SourceChip(host = it) }
 
                 KomiText(
-                    text = app.installedVersion,
+                    text = if (appItem.isFileMissing) appItem.idleVersionLabel else app.installedVersion,
                     role = KomiTextRole.Body,
                     fontSize = 13.sp,
                     color = colors.onSurfaceVariant,
@@ -171,7 +172,7 @@ fun CompactAppRow(
 
             Spacer(Modifier.width(4.dp))
         } else if (!app.isPendingInstall && !isBusy) {
-            val openLabel = stringResource(openRes())
+            val openLabel = stringResource(if (appItem.isFileMissing) Res.string.download_again else openRes())
             Box(
                 modifier = Modifier
                     .size(40.dp)
