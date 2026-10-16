@@ -11,4 +11,5 @@ data class AppItem(
     val canSkipVersion: Boolean = false,
     val versionLabel: String = "",
     val idleVersionLabel: String = "",
+    val isFileMissing: Boolean = false,
 )

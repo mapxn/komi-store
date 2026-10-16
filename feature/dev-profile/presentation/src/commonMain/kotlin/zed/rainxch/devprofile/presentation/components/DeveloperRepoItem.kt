@@ -47,6 +47,7 @@ import zed.rainxch.core.presentation.locals.LocalPersonality
 import zed.rainxch.core.presentation.personality.utils.PersonalityPreview
 import zed.rainxch.core.presentation.utils.formatCount
 import zed.rainxch.core.presentation.utils.formatRelativeLong
+import zed.rainxch.core.presentation.utils.installedRes
 import zed.rainxch.devprofile.domain.model.DeveloperRepository
 import zed.rainxch.githubstore.core.presentation.res.*
 import kotlin.time.Clock
@@ -216,7 +217,7 @@ fun DeveloperRepoItem(
                     }
                     if (repository.isInstalled) {
                         TonalBadge(
-                            text = stringResource(Res.string.installed),
+                            text = stringResource(installedRes()),
                             container = colors.primary.copy(alpha = 0.18f),
                             content = colors.primary,
                         )

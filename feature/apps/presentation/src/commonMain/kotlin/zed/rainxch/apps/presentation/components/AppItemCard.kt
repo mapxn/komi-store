@@ -62,7 +62,6 @@ import zed.rainxch.githubstore.core.presentation.res.discard_pending_install
 import zed.rainxch.githubstore.core.presentation.res.downloading
 import zed.rainxch.githubstore.core.presentation.res.error_with_message
 import zed.rainxch.githubstore.core.presentation.res.install
-import zed.rainxch.githubstore.core.presentation.res.open
 import zed.rainxch.githubstore.core.presentation.res.pending_install
 import zed.rainxch.githubstore.core.presentation.res.pre_release_badge
 import zed.rainxch.githubstore.core.presentation.res.ready_to_install
@@ -73,6 +72,8 @@ import zed.rainxch.githubstore.core.presentation.res.variant_picker_open
 import zed.rainxch.githubstore.core.presentation.res.variant_stale_hint
 import zed.rainxch.core.presentation.utils.installingRes
 import zed.rainxch.core.presentation.utils.uninstallRes
+import zed.rainxch.githubstore.core.presentation.res.download_again
+import zed.rainxch.core.presentation.utils.openRes
 
 @Composable
 fun AppItemCard(
@@ -566,7 +567,7 @@ fun AppItemCard(
                         } else {
                             KomiButton(
                                 onClick = onOpenClick,
-                                label = stringResource(Res.string.open),
+                                label = stringResource(if (appItem.isFileMissing) Res.string.download_again else openRes()),
                                 variant = KomiButtonVariant.Primary,
                                 leadingIcon = Icons.AutoMirrored.Filled.OpenInNew,
                                 enabled = !appItem.isBusy,

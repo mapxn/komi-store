@@ -45,6 +45,7 @@ import zed.rainxch.core.presentation.components.text.KomiTextRole
 import zed.rainxch.core.presentation.locals.LocalPersonality
 import zed.rainxch.core.presentation.personality.utils.PersonalityPreview
 import zed.rainxch.core.presentation.utils.formatCount
+import zed.rainxch.core.presentation.utils.installedRes
 import zed.rainxch.githubstore.core.presentation.res.*
 import zed.rainxch.starred.presentation.model.StarredRepositoryUi
 
@@ -172,7 +173,7 @@ fun StarredRepositoryItem(
 
                 if (repository.isInstalled) {
                     TonalBadge(
-                        text = stringResource(Res.string.installed),
+                        text = stringResource(installedRes()),
                         container = colors.primary.copy(alpha = 0.18f),
                         content = colors.primary,
                     )

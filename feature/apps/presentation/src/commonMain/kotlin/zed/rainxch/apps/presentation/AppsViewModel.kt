@@ -55,6 +55,7 @@ import zed.rainxch.core.domain.repository.TweaksRepository
 import zed.rainxch.core.domain.system.DownloadOrchestrator
 import zed.rainxch.core.domain.system.DownloadSpec
 import zed.rainxch.core.domain.system.DownloadStage as OrchestratorStage
+import zed.rainxch.core.domain.system.DownloadedFileStore
 import zed.rainxch.core.domain.system.InstallPolicy
 import zed.rainxch.core.domain.system.LocalFileSystem
 import zed.rainxch.core.domain.system.Installer
@@ -87,6 +88,7 @@ class AppsViewModel(
     private val systemInstallSerializer: SystemInstallSerializer,
     private val browserHelper: BrowserHelper,
     private val localFileSystem: LocalFileSystem,
+    private val downloadedFileStore: DownloadedFileStore,
 ) : ViewModel() {
     companion object {
         private const val BANNER_THRESHOLD = 1
@@ -103,6 +105,8 @@ class AppsViewModel(
     private var localBannerDismissedAtCount: Int = 0
 
     private var advancedPreviewJob: Job? = null
+
+    private val filePresenceRevision = MutableStateFlow(0)
 
     private val _state = MutableStateFlow(AppsState())
     val state =
@@ -170,6 +174,16 @@ class AppsViewModel(
         )
     }
 
+    private suspend fun AppItem.markFileMissing(missing: Boolean): AppItem {
+        if (!missing) return this
+        val deleted = getString(Res.string.download_deleted)
+        return copy(
+            isFileMissing = true,
+            versionLabel = "$versionLabel · $deleted",
+            idleVersionLabel = "$idleVersionLabel · $deleted",
+        )
+    }
+
     private fun observeKaoBannerDismissed() {
         viewModelScope.launch {
             tweaksRepository.getKaoBannerDismissed().collect { dismissed ->
@@ -215,7 +229,8 @@ class AppsViewModel(
                     appsRepository.getApps(),
                     tweaksRepository.getAppsSortRule(),
                     TimeZoneChangeSignal.revision,
-                ) { apps, sortStored, _ ->
+                    filePresenceRevision,
+                ) { apps, sortStored, _, _ ->
                     apps to AppSortRule.fromName(sortStored)
                 }.collect { (apps, sortRule) ->
                     val appItems =
@@ -231,7 +246,7 @@ class AppsViewModel(
                                         updateState = existing?.updateState ?: UpdateState.Idle,
                                         downloadProgress = existing?.downloadProgress,
                                         error = existing?.error,
-                                    ),
+                                    ).markFileMissing(!downloadedFileStore.isFilePresent(domainApp)),
                                 )
                             }
                         }.sortedWith(appComparator(sortRule))
@@ -405,6 +420,7 @@ class AppsViewModel(
             }
 
             AppsAction.OnLifecycleResume -> {
+                filePresenceRevision.update { it + 1 }
                 autoCheckForUpdatesIfNeeded()
             }
 
@@ -1105,6 +1121,24 @@ class AppsViewModel(
     }
 
     private fun openApp(app: InstalledAppUi) {
+        val fileMissing =
+            _state.value.apps
+                .firstOrNull { it.installedApp.packageName == app.packageName }
+                ?.isFileMissing == true
+        if (fileMissing) {
+            viewModelScope.launch {
+                _events.send(
+                    AppsEvent.NavigateToRepo(
+                        repoId = app.repoId,
+                        sourceHost = app.sourceHost,
+                        owner = app.repoOwner,
+                        repo = app.repoName,
+                        packageName = app.packageName,
+                    ),
+                )
+            }
+            return
+        }
         viewModelScope.launch {
             try {
                 appsRepository.openApp(
