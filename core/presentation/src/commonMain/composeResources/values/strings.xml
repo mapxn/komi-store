@@ -1505,4 +1505,12 @@
     <string name="go_to_version">Go to %1$s</string>
     <string name="get_it_on_platform">Get it on %1$s</string>
     <string name="share_link">Share link</string>
+    <string name="downloaded">Downloaded</string>
+    <string name="delete_download">Delete</string>
+    <string name="saving_download">Saving</string>
+    <string name="download_latest">Download latest</string>
+    <string name="download_version">Download %1$s</string>
+    <string name="export_download">Export</string>
+    <string name="download_deleted">Deleted</string>
+    <string name="download_again">Download again</string>
 </resources>

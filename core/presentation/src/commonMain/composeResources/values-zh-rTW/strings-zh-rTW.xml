@@ -1423,4 +1423,12 @@
     <string name="go_to_version">前往 %1$s</string>
     <string name="get_it_on_platform">取得 %1$s 版</string>
     <string name="share_link">分享連結</string>
+    <string name="downloaded">已下載</string>
+    <string name="delete_download">刪除</string>
+    <string name="saving_download">儲存中</string>
+    <string name="download_latest">下載最新版本</string>
+    <string name="download_version">下載 %1$s</string>
+    <string name="export_download">匯出</string>
+    <string name="download_deleted">已刪除</string>
+    <string name="download_again">重新下載</string>
 </resources>

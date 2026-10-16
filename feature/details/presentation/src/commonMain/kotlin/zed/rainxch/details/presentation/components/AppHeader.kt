@@ -75,11 +75,11 @@ import zed.rainxch.details.presentation.model.DownloadStage
 import zed.rainxch.githubstore.core.presentation.res.Res
 import zed.rainxch.githubstore.core.presentation.res.details_last_push
 import zed.rainxch.githubstore.core.presentation.res.forked_repository
-import zed.rainxch.githubstore.core.presentation.res.installed
 import zed.rainxch.githubstore.core.presentation.res.no_description
 import zed.rainxch.githubstore.core.presentation.res.pending_install
 import zed.rainxch.githubstore.core.presentation.res.self_owned_badge
 import zed.rainxch.githubstore.core.presentation.res.update_available
+import zed.rainxch.core.presentation.utils.installedRes
 
 private fun Color.normalizedForStripe(isDark: Boolean): Color {
     val r = (red * 255f).toInt().coerceIn(0, 255)
@@ -492,7 +492,7 @@ private fun InstalledStatusPill(installedApp: InstalledApp) {
                 when {
                     installedApp.isPendingInstall -> Res.string.pending_install
                     installedApp.isUpdateAvailable -> Res.string.update_available
-                    else -> Res.string.installed
+                    else -> installedRes()
                 },
             ),
             role = KomiTextRole.Label,

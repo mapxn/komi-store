@@ -17,14 +17,14 @@ import zed.rainxch.githubstore.core.presentation.res.Res
 import zed.rainxch.githubstore.core.presentation.res.cancel
 import zed.rainxch.githubstore.core.presentation.res.confirm_uninstall_message
 import zed.rainxch.githubstore.core.presentation.res.confirm_uninstall_title
-import zed.rainxch.githubstore.core.presentation.res.uninstall
+import zed.rainxch.core.presentation.utils.uninstallRes
 
 @Composable
 fun PendingUninstallSheet(
     app: InstalledAppUi,
     onAction: (AppsAction) -> Unit,
 ) {
-    val confirmLabel = stringResource(Res.string.uninstall)
+    val confirmLabel = stringResource(uninstallRes())
     val cancelLabel = stringResource(Res.string.cancel)
     KomiSheet(
         onDismiss = {

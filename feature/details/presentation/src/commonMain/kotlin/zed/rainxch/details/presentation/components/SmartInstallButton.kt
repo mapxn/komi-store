@@ -63,20 +63,20 @@ import zed.rainxch.githubstore.core.presentation.res.architecture_compatible
 import zed.rainxch.githubstore.core.presentation.res.cancel_download
 import zed.rainxch.githubstore.core.presentation.res.checking_attestation
 import zed.rainxch.githubstore.core.presentation.res.downloading
-import zed.rainxch.githubstore.core.presentation.res.install_latest
 import zed.rainxch.githubstore.core.presentation.res.install_ready
-import zed.rainxch.githubstore.core.presentation.res.install_version
-import zed.rainxch.githubstore.core.presentation.res.installing
 import zed.rainxch.githubstore.core.presentation.res.no_build_for_this_device
 import zed.rainxch.githubstore.core.presentation.res.not_available
-import zed.rainxch.githubstore.core.presentation.res.open_app
 import zed.rainxch.githubstore.core.presentation.res.show_install_options
 import zed.rainxch.githubstore.core.presentation.res.unable_to_verify_attestation
-import zed.rainxch.githubstore.core.presentation.res.uninstall
 import zed.rainxch.githubstore.core.presentation.res.update_to_version
 import zed.rainxch.githubstore.core.presentation.res.updating
 import zed.rainxch.githubstore.core.presentation.res.verified_build
 import zed.rainxch.githubstore.core.presentation.res.verifying
+import zed.rainxch.core.presentation.utils.installLatestRes
+import zed.rainxch.core.presentation.utils.installVersionRes
+import zed.rainxch.core.presentation.utils.installingRes
+import zed.rainxch.core.presentation.utils.openAppRes
+import zed.rainxch.core.presentation.utils.uninstallRes
 
 private val ButtonHeight = 56.dp
 
@@ -157,15 +157,15 @@ fun SmartInstallButton(
             normInstalled != null &&
             normSelected != null &&
             !VersionMath.isExactSameVersion(normInstalled, normSelected) -> {
-            stringResource(Res.string.install_version, displaySelected ?: normSelected)
+            stringResource(installVersionRes(), displaySelected ?: normSelected)
         }
         normSelected != null &&
             state.allReleases.firstOrNull()?.tagName?.let { latestTag ->
                 !VersionMath.isExactSameVersion(latestTag, normSelected)
             } == true -> {
-            stringResource(Res.string.install_version, displaySelected ?: normSelected)
+            stringResource(installVersionRes(), displaySelected ?: normSelected)
         }
-        else -> stringResource(Res.string.install_latest)
+        else -> stringResource(installLatestRes())
     }
 
     val hasTrailing = isActiveDownload || state.isObtainiumEnabled
@@ -405,7 +405,7 @@ private fun DownloadingLabel(
             DownloadStage.INSTALLING -> if (isUpdateAvailable) {
                 stringResource(Res.string.updating)
             } else {
-                stringResource(Res.string.installing)
+                stringResource(installingRes())
             }
             DownloadStage.IDLE -> ""
         }
@@ -515,7 +515,7 @@ private fun InstalledSplitRow(
                     tint = colors.error,
                 )
                 KomiText(
-                    text = stringResource(Res.string.uninstall),
+                    text = stringResource(uninstallRes()),
                     role = KomiTextRole.Title,
                     color = colors.error,
                     fontWeight = FontWeight.SemiBold,
@@ -544,7 +544,7 @@ private fun InstalledSplitRow(
                     tint = colors.onPrimary,
                 )
                 KomiText(
-                    text = stringResource(Res.string.open_app),
+                    text = stringResource(openAppRes()),
                     role = KomiTextRole.Title,
                     color = colors.onPrimary,
                     fontWeight = FontWeight.SemiBold,

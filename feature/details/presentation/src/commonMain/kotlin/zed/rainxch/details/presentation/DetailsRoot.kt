@@ -101,6 +101,7 @@ import zed.rainxch.githubstore.core.presentation.res.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
+import zed.rainxch.core.presentation.utils.uninstallRes
 
 @Composable
 fun DetailsRoot(
@@ -411,7 +412,7 @@ fun DetailsRoot(
                     onClick = {
                         viewModel.onAction(DetailsAction.OnConfirmUninstall)
                     },
-                    label = stringResource(Res.string.uninstall),
+                    label = stringResource(uninstallRes()),
                     variant = KomiButtonVariant.Text,
                     size = KomiButtonSize.Sm,
                 )

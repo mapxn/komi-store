@@ -55,12 +55,12 @@ import zed.rainxch.githubstore.core.presentation.res.apps_ignore_updates
 import zed.rainxch.githubstore.core.presentation.res.apps_menu_item_active
 import zed.rainxch.githubstore.core.presentation.res.apps_skip_version_unskip
 import zed.rainxch.githubstore.core.presentation.res.install
-import zed.rainxch.githubstore.core.presentation.res.open
 import zed.rainxch.githubstore.core.presentation.res.pre_release_badge
-import zed.rainxch.githubstore.core.presentation.res.uninstall
 import zed.rainxch.githubstore.core.presentation.res.discard_pending_install
 import zed.rainxch.githubstore.core.presentation.res.variant_picker_open
 import kotlin.time.ExperimentalTime
+import zed.rainxch.core.presentation.utils.openRes
+import zed.rainxch.core.presentation.utils.uninstallRes
 
 @Composable
 fun CompactAppRow(
@@ -171,7 +171,7 @@ fun CompactAppRow(
 
             Spacer(Modifier.width(4.dp))
         } else if (!app.isPendingInstall && !isBusy) {
-            val openLabel = stringResource(Res.string.open)
+            val openLabel = stringResource(openRes())
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -234,7 +234,7 @@ private fun CompactRowOverflow(
     val variantPickerLabel = stringResource(Res.string.variant_picker_open)
     val unskipLabel = stringResource(Res.string.apps_skip_version_unskip)
     val discardLabel = stringResource(Res.string.discard_pending_install)
-    val uninstallLabel = stringResource(Res.string.uninstall)
+    val uninstallLabel = stringResource(uninstallRes())
     val preReleaseActive = stringResource(Res.string.apps_menu_item_active, preReleaseBase)
     val ignoreUpdatesActive = stringResource(Res.string.apps_menu_item_active, ignoreUpdatesBase)
 

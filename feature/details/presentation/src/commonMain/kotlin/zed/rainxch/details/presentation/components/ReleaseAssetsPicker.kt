@@ -68,6 +68,7 @@ import zed.rainxch.core.presentation.locals.LocalPersonality
 import zed.rainxch.details.presentation.DetailsAction
 import zed.rainxch.githubstore.core.presentation.res.*
 import zed.rainxch.githubstore.core.presentation.res.Res
+import zed.rainxch.core.presentation.utils.installedRes
 
 @Composable
 fun ReleaseAssetsPicker(
@@ -341,7 +342,7 @@ private fun ReleaseAssetsItemsPicker(
                             }
                             KomiText(
                                 text = stringResource(
-                                    if (allInstalled) Res.string.installed else Res.string.assets_section_your_app,
+                                    if (allInstalled) installedRes() else Res.string.assets_section_your_app,
                                 ),
                                 role = KomiTextRole.Label,
                                 fontWeight = FontWeight.SemiBold,
@@ -501,7 +502,7 @@ private fun ReleaseAssetItem(
                     uppercase = false,
                 )
                 val variantBadge = when (variantStatus) {
-                    AssetOwnership.VariantStatus.INSTALLED -> Res.string.installed
+                    AssetOwnership.VariantStatus.INSTALLED -> installedRes()
                     AssetOwnership.VariantStatus.UPDATE -> Res.string.update
                     else -> null
                 }

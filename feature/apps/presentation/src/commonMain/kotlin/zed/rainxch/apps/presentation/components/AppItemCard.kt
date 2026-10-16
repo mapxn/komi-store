@@ -62,17 +62,17 @@ import zed.rainxch.githubstore.core.presentation.res.discard_pending_install
 import zed.rainxch.githubstore.core.presentation.res.downloading
 import zed.rainxch.githubstore.core.presentation.res.error_with_message
 import zed.rainxch.githubstore.core.presentation.res.install
-import zed.rainxch.githubstore.core.presentation.res.installing
 import zed.rainxch.githubstore.core.presentation.res.open
 import zed.rainxch.githubstore.core.presentation.res.pending_install
 import zed.rainxch.githubstore.core.presentation.res.pre_release_badge
 import zed.rainxch.githubstore.core.presentation.res.ready_to_install
-import zed.rainxch.githubstore.core.presentation.res.uninstall
 import zed.rainxch.githubstore.core.presentation.res.update
 import zed.rainxch.githubstore.core.presentation.res.updated_successfully
 import zed.rainxch.githubstore.core.presentation.res.variant_label_inline
 import zed.rainxch.githubstore.core.presentation.res.variant_picker_open
 import zed.rainxch.githubstore.core.presentation.res.variant_stale_hint
+import zed.rainxch.core.presentation.utils.installingRes
+import zed.rainxch.core.presentation.utils.uninstallRes
 
 @Composable
 fun AppItemCard(
@@ -429,7 +429,7 @@ fun AppItemCard(
                         )
 
                         KomiText(
-                            text = stringResource(Res.string.installing),
+                            text = stringResource(installingRes()),
                             role = KomiTextRole.Body,
                             fontSize = 13.sp,
                             color = colors.onSurface,
@@ -497,7 +497,7 @@ fun AppItemCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!app.isPendingInstall) {
-                    val uninstallDescription = stringResource(Res.string.uninstall)
+                    val uninstallDescription = stringResource(uninstallRes())
                     Box(
                         modifier = Modifier
                             .size(48.dp)
