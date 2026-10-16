@@ -8,10 +8,6 @@ import io.ktor.util.network.UnresolvedAddressException
 import zed.rainxch.core.domain.model.settings.ProxyConfig
 import zed.rainxch.core.domain.network.ProxyTestOutcome
 import zed.rainxch.core.domain.network.ProxyTester
-import java.io.IOException
-import java.net.ConnectException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.TimeSource
 
@@ -47,22 +43,8 @@ class ProxyTesterImpl : ProxyTester {
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: HttpRequestTimeoutException) {
-            ProxyTestOutcome.Failure.Timeout
-        } catch (e: SocketTimeoutException) {
-            ProxyTestOutcome.Failure.Timeout
-        } catch (e: UnresolvedAddressException) {
-            ProxyTestOutcome.Failure.DnsFailure
-        } catch (e: UnknownHostException) {
-            ProxyTestOutcome.Failure.DnsFailure
-        } catch (e: ConnectException) {
-            ProxyTestOutcome.Failure.ProxyUnreachable
-        } catch (e: IOException) {
-            ProxyTestOutcome.Failure.Unknown(e.message)
-        } catch (e: CancellationException) {
-            throw e
         } catch (e: Exception) {
-            ProxyTestOutcome.Failure.Unknown(e.message)
+            classifyProxyFailure(e)
         } finally {
             client.close()
         }
@@ -73,3 +55,19 @@ class ProxyTesterImpl : ProxyTester {
         const val TEST_TIMEOUT_MS = 8_000L
     }
 }
+
+internal fun classifyProxyFailure(error: Exception): ProxyTestOutcome.Failure =
+    when {
+        error is HttpRequestTimeoutException || error.hasClassNamed("SocketTimeoutException") ->
+            ProxyTestOutcome.Failure.Timeout
+
+        error is UnresolvedAddressException || error.hasClassNamed("UnknownHostException") ->
+            ProxyTestOutcome.Failure.DnsFailure
+
+        error.hasClassNamed("ConnectException") -> ProxyTestOutcome.Failure.ProxyUnreachable
+
+        else -> ProxyTestOutcome.Failure.Unknown(error.message)
+    }
+
+private fun Throwable.hasClassNamed(name: String): Boolean =
+    generateSequence<Throwable>(this) { it.cause }.any { it::class.simpleName == name }

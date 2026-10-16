@@ -18,7 +18,7 @@ import zed.rainxch.core.domain.model.settings.ProxyConfig
 import zed.rainxch.core.domain.model.error.RateLimitException
 import zed.rainxch.core.domain.repository.UserSessionRepository
 import zed.rainxch.core.domain.repository.RateLimitRepository
-import java.io.IOException
+import kotlinx.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 
 expect fun createPlatformHttpClient(proxyConfig: ProxyConfig): HttpClient

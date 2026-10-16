@@ -2,6 +2,7 @@ package zed.rainxch.core.domain.use_cases
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import zed.rainxch.core.domain.logging.KomiStoreLogger
@@ -17,6 +18,7 @@ import zed.rainxch.core.domain.model.installation.withMigratedVersionInfo
 import zed.rainxch.core.domain.model.system.Platform
 import zed.rainxch.core.domain.repository.InstalledAppsRepository
 import zed.rainxch.core.domain.system.PackageMonitor
+import kotlin.time.Clock
 
 class SyncInstalledAppsUseCase(
     private val packageMonitor: PackageMonitor,
@@ -75,7 +77,7 @@ class SyncInstalledAppsUseCase(
 
     private suspend fun reconcileEnumerable(appsInDb: List<InstalledApp>) {
         val installedPackageNames = packageMonitor.getAllInstalledPackageNames()
-        val now = System.currentTimeMillis()
+        val now = Clock.System.now().toEpochMilliseconds()
 
         val deleteCandidates = mutableListOf<String>()
         val staleCandidates = mutableListOf<InstalledApp>()

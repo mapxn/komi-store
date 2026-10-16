@@ -7,10 +7,13 @@ import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import zed.rainxch.core.data.network.createPlatformHttpClient
+import zed.rainxch.core.data.utils.OkioLocalFileSystem
+import zed.rainxch.core.domain.system.LocalFileSystem
 import zed.rainxch.core.data.cache.CacheManager
 import zed.rainxch.core.data.data_source.TokenStore
 import zed.rainxch.core.data.download.MultiSourceDownloaderImpl
@@ -100,6 +103,10 @@ val coreModule =
 
         single<Platform> {
             getPlatform()
+        }
+
+        single<LocalFileSystem> {
+            OkioLocalFileSystem()
         }
 
         single<UserSessionRepository> {

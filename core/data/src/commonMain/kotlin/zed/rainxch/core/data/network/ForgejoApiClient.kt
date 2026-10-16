@@ -20,7 +20,7 @@ import zed.rainxch.core.data.dto.ForgejoSearchResponse
 import zed.rainxch.core.data.dto.GithubReadmeResponseDto
 import zed.rainxch.core.data.dto.ReleaseNetwork
 import zed.rainxch.core.domain.model.settings.ProxyConfig
-import java.io.IOException
+import kotlinx.io.IOException
 
 class ForgejoApiClient(
     host: String,

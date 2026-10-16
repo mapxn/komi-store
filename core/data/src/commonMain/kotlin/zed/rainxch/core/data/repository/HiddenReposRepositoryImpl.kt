@@ -6,6 +6,7 @@ import zed.rainxch.core.data.local.db.dao.HiddenRepoDao
 import zed.rainxch.core.data.local.db.entities.HiddenRepoEntity
 import zed.rainxch.core.domain.model.repository.HiddenRepo
 import zed.rainxch.core.domain.repository.HiddenReposRepository
+import kotlin.time.Clock
 
 class HiddenReposRepositoryImpl(
     private val hiddenRepoDao: HiddenRepoDao,
@@ -30,7 +31,7 @@ class HiddenReposRepositoryImpl(
                 repoName = repoName,
                 repoOwner = repoOwner,
                 repoOwnerAvatarUrl = repoOwnerAvatarUrl,
-                hiddenAt = System.currentTimeMillis(),
+                hiddenAt = Clock.System.now().toEpochMilliseconds(),
             ),
         )
     }

@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import zed.rainxch.core.data.data_source.TokenStore
 import zed.rainxch.core.data.network.GithubAssetAuth
 import zed.rainxch.core.domain.model.installation.DownloadProgress
@@ -200,7 +202,7 @@ class DefaultDownloadOrchestrator(
             val mismatch = digestVerifier.verify(filePath, expectedDigest)
             if (mismatch != null) {
                 Logger.w { "Orchestrator: digest mismatch for ${spec.asset.name}: $mismatch" }
-                runCatching { java.io.File(filePath).delete() }
+                runCatching { FileSystem.SYSTEM.delete(filePath.toPath(), mustExist = false) }
                 markFailed(
                     spec.packageName,
                     "Checksum mismatch — file may have been tampered with",
