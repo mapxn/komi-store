@@ -1,5 +1,6 @@
 package zed.rainxch.core.data.repository
 
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CancellationException
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient

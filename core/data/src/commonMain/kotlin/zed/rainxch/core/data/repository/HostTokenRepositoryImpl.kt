@@ -1,6 +1,7 @@
 package zed.rainxch.core.data.repository
 
 import eu.anifantakis.lib.ksafe.KSafe
+import kotlin.concurrent.Volatile
 import io.ktor.client.HttpClient
 import io.ktor.client.request.accept
 import io.ktor.client.request.get

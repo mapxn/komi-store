@@ -1,6 +1,7 @@
 package zed.rainxch.core.data.repository
 
 import androidx.datastore.core.DataStore
+import kotlin.concurrent.Volatile
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey

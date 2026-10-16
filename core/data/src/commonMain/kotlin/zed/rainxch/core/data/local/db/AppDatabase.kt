@@ -1,6 +1,7 @@
 package zed.rainxch.core.data.local.db
 
 import androidx.room.AutoMigration
+import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import zed.rainxch.core.data.local.db.dao.CacheDao
@@ -41,6 +42,7 @@ import zed.rainxch.core.data.local.db.entities.UpdateHistoryEntity
     exportSchema = true,
     autoMigrations = [AutoMigration(from = 18, to = 19)],
 )
+@ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract val installedAppDao: InstalledAppDao
     abstract val favoriteRepoDao: FavoriteRepoDao
