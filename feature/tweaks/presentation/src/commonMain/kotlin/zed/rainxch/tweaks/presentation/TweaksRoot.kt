@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import zed.rainxch.core.domain.isAndroid
+import zed.rainxch.core.domain.isMobile
 import zed.rainxch.core.domain.isDesktop
 import zed.rainxch.core.domain.model.settings.AppLanguages
 import zed.rainxch.core.presentation.components.bars.KomiTopBar
@@ -190,7 +190,7 @@ fun TweaksRoot(
                         onAction = viewModel::onAction,
                         onNavigateToMirrorPicker = onNavigateToMirrorPicker,
                     )
-                    if (isAndroid()) {
+                    if (isMobile()) {
                         installsSection(
                             state = state,
                             onAction = viewModel::onAction,

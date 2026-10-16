@@ -43,6 +43,8 @@ import zed.rainxch.githubstore.core.presentation.res.sort_apps
 import zed.rainxch.githubstore.core.presentation.res.sort_name
 import zed.rainxch.githubstore.core.presentation.res.sort_recently_updated
 import zed.rainxch.githubstore.core.presentation.res.sort_updates_first
+import zed.rainxch.core.domain.isIos
+import kotlinx.collections.immutable.toImmutableList
 
 @Composable
 fun AppsTopbar(
@@ -128,8 +130,8 @@ fun AppsTopbar(
                         .background(colors.outline.copy(alpha = 0.5f)),
                 )
 
-                KomiDropdown(
-                    entries = persistentListOf(
+                val menuEntries =
+                    persistentListOf(
                         KomiMenuItem(
                             id = "export_apps",
                             label = stringResource(Res.string.export_apps),
@@ -155,7 +157,14 @@ fun AppsTopbar(
                             label = stringResource(Res.string.add_from_starred_title),
                             icon = Icons.Filled.Star,
                         ),
-                    ),
+                    )
+                KomiDropdown(
+                    entries =
+                        if (isIos()) {
+                            menuEntries.filter { it.id == "export_apps" }.toImmutableList()
+                        } else {
+                            menuEntries
+                        },
                     onSelect = { item ->
                         when (item.id) {
                             "export_apps" -> onAction(AppsAction.OnExportApps)

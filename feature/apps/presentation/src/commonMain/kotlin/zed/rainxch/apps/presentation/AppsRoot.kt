@@ -92,6 +92,7 @@ import zed.rainxch.githubstore.core.presentation.res.no_apps_found
 import zed.rainxch.githubstore.core.presentation.res.search_your_apps
 import zed.rainxch.githubstore.core.presentation.res.uninstall
 import kotlin.time.ExperimentalTime
+import zed.rainxch.core.domain.isIos
 
 @Composable
 fun AppsRoot(
@@ -224,13 +225,15 @@ fun AppsScreen(
             )
         },
         floatingActionButton = {
-            KomiFab(
-                icon = Icons.Default.Add,
-                contentDescription = stringResource(Res.string.add_by_link),
-                onClick = {
-                    onAction(AppsAction.OnAddByLinkClick)
-                },
-            )
+            if (!isIos()) {
+                KomiFab(
+                    icon = Icons.Default.Add,
+                    contentDescription = stringResource(Res.string.add_by_link),
+                    onClick = {
+                        onAction(AppsAction.OnAddByLinkClick)
+                    },
+                )
+            }
         },
         toastState = toastState,
     ) { innerPadding ->

@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
+import zed.rainxch.core.domain.isAndroid
 import zed.rainxch.core.domain.isDesktop
 import zed.rainxch.core.domain.model.installation.DhizukuAvailability
 import zed.rainxch.core.domain.model.installation.InstallerAttribution
@@ -51,7 +52,7 @@ fun installSectionContent(
     onAction: (TweaksAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (isDesktop()) return
+    if (!isAndroid()) return
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -146,21 +147,23 @@ fun updatesSectionContent(
             )
         }
         SettingsGroup {
-            SettingsRow(
-                title = stringResource(Res.string.update_check_enabled_title),
-                subtitle = stringResource(Res.string.update_check_enabled_description),
-                trailing = {
-                    KomiSwitch(
-                        checked = state.updateCheckEnabled,
-                        onCheckedChange = { onAction(TweaksAction.OnUpdateCheckEnabledToggled(it)) },
-                    )
-                },
-            )
-            IntervalBlock(
-                selectedIntervalHours = state.updateCheckIntervalHours,
-                enabled = state.updateCheckEnabled,
-                onIntervalSelected = { onAction(TweaksAction.OnUpdateCheckIntervalChanged(it)) },
-            )
+            if (isAndroid()) {
+                SettingsRow(
+                    title = stringResource(Res.string.update_check_enabled_title),
+                    subtitle = stringResource(Res.string.update_check_enabled_description),
+                    trailing = {
+                        KomiSwitch(
+                            checked = state.updateCheckEnabled,
+                            onCheckedChange = { onAction(TweaksAction.OnUpdateCheckEnabledToggled(it)) },
+                        )
+                    },
+                )
+                IntervalBlock(
+                    selectedIntervalHours = state.updateCheckIntervalHours,
+                    enabled = state.updateCheckEnabled,
+                    onIntervalSelected = { onAction(TweaksAction.OnUpdateCheckIntervalChanged(it)) },
+                )
+            }
             SettingsRow(
                 title = stringResource(Res.string.include_pre_releases_title),
                 subtitle = stringResource(Res.string.include_pre_releases_description),

@@ -64,6 +64,7 @@ import zed.rainxch.githubstore.core.presentation.res.newer_releases_no_build_for
 import zed.rainxch.githubstore.core.presentation.res.obtainium_description
 import zed.rainxch.githubstore.core.presentation.res.open_in_obtainium
 import zed.rainxch.githubstore.core.presentation.res.open_with_external_installer
+import zed.rainxch.core.domain.isIos
 
 fun LazyListScope.header(
     state: DetailsState,
@@ -233,7 +234,7 @@ fun LazyListScope.header(
                         onAction = onAction,
                         modifier = Modifier.weight(1f),
                     )
-                    if (canInspectApk) {
+                    if (canInspectApk && !isIos()) {
                         InspectApkButton(
                             showCoachmark = coachmarkActive,
                             onClick = { onAction(DetailsAction.OnInspectApk) },

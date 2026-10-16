@@ -29,7 +29,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import zed.rainxch.core.domain.isAndroid
+import zed.rainxch.core.domain.isMobile
 import zed.rainxch.core.presentation.components.buttons.KomiButtonVariant
 import zed.rainxch.core.presentation.components.buttons.KomiIconButton
 import zed.rainxch.core.presentation.components.inputs.KomiTextField
@@ -70,7 +70,7 @@ fun FeedbackBottomSheet(
         onDismiss()
     }
 
-    if (isAndroid()) {
+    if (isMobile()) {
         KomiSheet(
             onDismiss = dismiss,
         ) {

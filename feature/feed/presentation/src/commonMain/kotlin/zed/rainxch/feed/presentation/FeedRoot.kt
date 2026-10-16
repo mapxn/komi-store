@@ -31,7 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import zed.rainxch.core.domain.isAndroid
+import zed.rainxch.core.domain.isMobile
 import zed.rainxch.core.domain.isDesktop
 import zed.rainxch.core.domain.model.repository.DiscoveryPlatform
 import zed.rainxch.core.domain.model.repository.FeedCategory
@@ -159,7 +159,7 @@ private fun FeedScreen(
         },
         toastState = toastState,
     ) { innerPadding ->
-        if (isAndroid()) {
+        if (isMobile()) {
             KomiPullToRefresh(
                 isRefreshing = state.isRefreshing,
                 onRefresh = { onAction(FeedAction.OnRefresh) },

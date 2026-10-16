@@ -656,7 +656,7 @@ class SearchViewModel(
                         return@launch
                     }
 
-                    if (platform != Platform.ANDROID) {
+                    if (!platform.isMobile) {
                         _events.send(SearchEvent.OnMessage(getString(Res.string.link_copied_to_clipboard)))
                     }
                 }

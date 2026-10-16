@@ -71,6 +71,7 @@ import zed.rainxch.core.presentation.utils.formatFileSize
 import zed.rainxch.githubstore.core.presentation.res.*
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Clock
+import zed.rainxch.core.domain.isIos
 
 class AppsViewModel(
     private val appsRepository: AppsRepository,
@@ -172,7 +173,7 @@ class AppsViewModel(
     private fun observeKaoBannerDismissed() {
         viewModelScope.launch {
             tweaksRepository.getKaoBannerDismissed().collect { dismissed ->
-                _state.update { it.copy(showKaoBanner = !dismissed) }
+                _state.update { it.copy(showKaoBanner = !dismissed && !isIos()) }
             }
         }
     }

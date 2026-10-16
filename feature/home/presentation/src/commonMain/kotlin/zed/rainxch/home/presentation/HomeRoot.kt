@@ -34,7 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import zed.rainxch.core.domain.isAndroid
+import zed.rainxch.core.domain.isMobile
 import zed.rainxch.core.presentation.components.buttons.KomiButton
 import zed.rainxch.core.presentation.components.buttons.KomiButtonVariant
 import zed.rainxch.core.presentation.components.buttons.KomiIconButton
@@ -156,7 +156,7 @@ private fun HomeScreen(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
-            if (isAndroid()) {
+            if (isMobile()) {
                 KomiPullToRefresh(
                     isRefreshing = state.isRefreshing,
                     onRefresh = { onAction(HomeAction.OnRefresh) },

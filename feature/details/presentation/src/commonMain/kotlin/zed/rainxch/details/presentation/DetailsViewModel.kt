@@ -1572,7 +1572,7 @@ class DetailsViewModel(
                     return@launch
                 }
 
-                if (platform != Platform.ANDROID) {
+                if (!platform.isMobile) {
                     _events.send(DetailsEvent.OnMessage(getString(Res.string.link_copied_to_clipboard)))
                 }
             }
