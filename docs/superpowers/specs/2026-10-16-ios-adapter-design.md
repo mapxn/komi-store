@@ -42,7 +42,9 @@
 - `gradle/libs.versions.toml` 新增 `ktor-client-darwin`(版本跟随现有 `ktor`)。`sqlite-bundled` 已存在,供 Room 在 iOS 使用。依赖只加在各模块的 `iosMain.dependencies`。
 - `composeApp` 增加 iOS 目标,输出静态 framework `ComposeApp`。`iosMain` 提供 `MainViewController()`,内部通过 `ComposeUIViewController` 调用现有共享 `App()`。
 - 新增 `iosApp/` Xcode 工程,Swift 仅作宿主:承载 ViewController、`Info.plist`、URL scheme `githubstore`、`UIFileSharingEnabled` 与 `LSSupportsOpeningDocumentsInPlace`。
-- `core/data` 的 `androidMain` 中 `MIGRATION_1_2` 至 `MIGRATION_17_18` 移到 `commonMain`,供 iOS 复用。迁移逻辑本身不改,安卓与桌面行为不变。
+- 数据库迁移:iOS 沿用桌面端(`jvmMain` 的 `initDatabase`)的做法,只注册 `commonMain` 里已有的 `MIGRATION_19_20` 并开启 `fallbackToDestructiveMigration`。iOS 是全新安装,不存在从旧版本升级的数据,所以不需要搬动 `androidMain` 里的 `MIGRATION_1_2` 至 `MIGRATION_17_18`,安卓与桌面代码不动。
+- `commonMain` 中少量只能在 JVM 上编译的代码要改成跨平台写法:`System.currentTimeMillis()` 改为项目已在用的 `Clock.System.now().toEpochMilliseconds()`,`java.*` 引用(`File`、`MessageDigest`、`IOException`、`URLEncoder`、`SecureRandom`、`AtomicReference` 等)改为跨平台等价物,`String.format`/`"%.1f".format()` 改为手写格式化。行为不变。
+- iOS 工程用 XcodeGen 的 `iosApp/project.yml` 生成 `iosApp.xcodeproj`,两者都提交,这样没有 XcodeGen 也能直接打开工程。
 
 ## 4. 平台实现(iosMain)
 
@@ -50,12 +52,12 @@
 
 | 接口/声明 | iOS 实现要点 |
 |---|---|
-| `createPlatformHttpClient` | Ktor Darwin 引擎,保持现有代理与超时约定 |
-| `Downloader` | 基于 `NSURLSession` 的下载,保留进度 Flow、取消、`GithubAssetAuth` 令牌注入 |
+| `createPlatformHttpClient` | Ktor Darwin 引擎,代理沿用现有 `ProxyConfig`,HTTP 与 SOCKS 通过引擎的 `proxy` 配置。已知限制:Ktor 文档说明 Darwin 引擎的 HTTP 代理不支持 HTTPS 请求,GitHub 接口都是 HTTPS,因此 iOS 上 HTTP 代理实际无效,SOCKS 与系统代理可用 |
+| `Downloader` | 用上面的 Ktor 客户端流式下载,okio 写文件,保留进度 Flow、取消、`GithubAssetAuth` 令牌注入 |
 | `FileLocationsProvider` | `appDownloadsDir()` 用缓存目录,`userDownloadsDir()` 用 Documents 下的 `Komi Store Downloads` |
-| `Installer` | 不安装。`isSupported` 恒为 false,其余方法为无操作 |
+| `Installer` | 不安装系统。`install()` 把下载好的文件从缓存目录复制到 `userDownloadsDir()` 并返回 `COMPLETED`,现有"下载后安装并记录"的流程因此原样复用。常见发布包扩展名都视为可下载,APK 优先 |
 | `InstallerStatusProvider`、`PackageMonitor`、`ExternalAppScanner`、`AggressiveOemDetector`、`UpdateScheduleManager`、`PendingInstallNotifier`、`DownloadProgressNotifier` | 无操作实现,`PackageMonitor.canEnumerateInstalledPackages()` 为 false |
-| `DigestVerifier` | 基于 CommonCrypto 的 SHA-256 |
+| `DigestVerifier` | 基于 okio 的 SHA-256 |
 | `InstallerInfoExtractor` | 解析 APK 的 `AndroidManifest.xml` 获取包名与版本(见第 6 节),非 APK 返回 null |
 | `ApkInspector` | 无操作实现 |
 | `BrowserHelper`、`ClipboardHelper`、`ShareManager`、`AppLauncher` | `UIApplication.open`、`UIPasteboard`、`UIActivityViewController`;`AppLauncher` 改为导出/分享文件 |
@@ -72,11 +74,11 @@ KSafe 与 moko-permissions 的 iOS 支持需要在实施计划第一步验证(�
 沿用现有 `Platform` 与 `isMobile`/`isDesktop` 的做法,新增能力判断(如 `canInstall`、`supportsBackgroundUpdates`),由 `Platform.IOS` 派生,供 presentation 层使用:
 
 - 详情页:`canInstall = false` 时按钮文案与动作改为下载。
-- 设置页:隐藏安装方式、电池与厂商优化等安卓专属条目。
+- 设置页:iOS 只保留"更新"分组里的"包含预发布版本"和"已跳过的更新"入口;"检查更新开关与间隔"属于后台更新,安装方式、自动更新、电池优化都是安卓专属,在 iOS 上隐藏。
 - 导航:iOS 保留底部导航,Apps 入口显示为"已下载"。
 - Apps 页内:隐藏"关联已装应用""Obtainium 导入导出""查看 APK 清单"入口。
 
-安卓与桌面行为在开关为默认值时不变。
+安卓与桌面行为在开关为默认值时不变。`Platform` 新增 `IOS`,并新增 `tracksInstalledApps`(安卓与 iOS 为 true),原来用 `platform == Platform.ANDROID` 判断"是否记录已安装应用"的地方改用它;Obtainium、App Manager、静默安装等真正只属于安卓的判断保持原样。`isMobile` 包含 iOS,原来用 `isAndroid()` 判断下拉刷新的地方改用 `isMobile()`。
 
 ## 6. "已下载应用"页
 
@@ -90,7 +92,7 @@ KSafe 与 moko-permissions 的 iOS 支持需要在实施计划第一步验证(�
 - 更新检查:沿用"回到应用时检查,30 分钟冷却"和下拉刷新。有新版本时显示角标,"更新"即下载新版本,新版本下载完成后替换记录并删除旧文件。
 - 保留:忽略更新、跳过某版本、固定变体、过滤规则、按仓库分组、排序、搜索。
 - "打开应用"改为导出/分享该文件。"卸载"改为删除文件并移除记录。
-- 记录对应文件被用户在"文件"App 中手动删除时,页面显示"已删除"状态,并允许重新下载,不崩溃。页面每次显示时检查记录对应的文件是否仍然存在。重新下载完成后恢复为正常的已下载状态,版本与更新角标逻辑不变。
+- 记录对应文件被用户在"文件"App 中手动删除时,页面显示"已删除"状态,并允许重新下载,不崩溃。实现方式:已下载页每次加载时检查记录对应的文件(`userDownloadsDir()` 加 `installedAssetName`)是否存在,不存在则该条目标记为已删除,版本行追加"已删除"文字,主按钮由"打开"变为"重新下载"并进入详情页;详情页在文件缺失时按"未下载"处理,显示下载按钮。重新下载完成后记录恢复正常,版本与更新角标逻辑不变。
 
 ## 7. 下载、保存与分享
 
@@ -112,7 +114,9 @@ KSafe 与 moko-permissions 的 iOS 支持需要在实施计划第一步验证(�
 ## 9. 风险与前置验证
 
 - Kotlin 2.3.10 与 Xcode 27.0 的兼容性未验证。实施第一步先跑 `:core:domain:compileKotlinIosSimulatorArm64`,失败则暂停并与用户商量。
-- KSafe 2.0.0、moko-permissions 0.20.1、multiplatform-markdown-renderer 0.39.2、Landscapist/coil3、Room 2.8.4 的 iOS 可用性需逐个确认,不可用的以 iosMain 的最小替代实现处理,并在计划中单独列出。
+- 第三方库已核对 Maven 元数据,以下库的指定版本都发布了 `iosArm64` 与 `iosSimulatorArm64`:KSafe 2.0.0、Koin 4.1.1、Room 2.8.4、DataStore 1.2.0、sqlite-bundled 2.6.2、Coil 3.3.0、markdown-renderer 0.39.2、highlights 1.0.0、Ktor Darwin 3.4.0、navigation-compose 2.9.2、material3 1.11.0-alpha03、kotlinx-datetime 0.7.1。moko-permissions 在代码中没有被引用,不影响。
+- 本机模拟器运行时是 iOS 17.2 和 17.4,而 Xcode 自带 SDK 是 iOS 27.0。若 Xcode 不能在这些运行时上运行用 27.0 SDK 构建的应用,需要下载较新的模拟器运行时(约数 GB),届时先征求用户同意。
+- 本机没有 `local.properties`,且 Android SDK 只有 `android-35` 平台,而 `compileSdk` 为 36。安卓回归构建依赖 AGP 自动下载平台 36;若失败,回归改为桌面端编译,并在汇报里明确说明安卓构建未能验证。
 - Apps 页代码量大,功能开关需要逐处排查入口,遗漏会造成 iOS 上出现无效按钮。阶段 3 需要逐项点击检查。
 - iOS 上解析 APK 清单需要新写一个小型的 zip 读取与二进制 XML 解析器(优先使用项目已间接依赖的 Okio 读取 zip,实施时确认其是否可用)。用真实 APK 样本做单元测试,覆盖正常文件、损坏文件与非 APK 文件。
 - 没有 Apple 开发者账号时只能在模拟器验证,真机运行与分发不在本次范围内。
