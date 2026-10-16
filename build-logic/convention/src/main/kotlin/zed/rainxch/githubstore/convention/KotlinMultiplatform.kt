@@ -12,6 +12,7 @@ internal fun Project.configureKotlinMultiplatform() {
 
     configureAndroidTarget()
     configureJvmTarget()
+    configureIosTargets()
 
     extensions.configure<KotlinMultiplatformExtension> {
         compilerOptions {

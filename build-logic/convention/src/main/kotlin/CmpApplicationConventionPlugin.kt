@@ -2,6 +2,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.dependencies
 import zed.rainxch.githubstore.convention.configureAndroidTarget
+import zed.rainxch.githubstore.convention.configureIosTargets
 import zed.rainxch.githubstore.convention.configureJvmTarget
 import zed.rainxch.githubstore.convention.libs
 
@@ -17,6 +18,7 @@ class CmpApplicationConventionPlugin : Plugin<Project> {
 
             configureAndroidTarget()
             configureJvmTarget()
+            configureIosTargets()
 
             dependencies {
                 "debugImplementation"(libs.findLibrary("androidx-compose-ui-tooling").get())
