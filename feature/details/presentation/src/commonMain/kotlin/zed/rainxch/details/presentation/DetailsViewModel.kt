@@ -2598,7 +2598,7 @@ class DetailsViewModel(
                         } catch (e: CancellationException) {
                             throw e
                         } catch (t: Throwable) {
-                            logger.error("Failed to load if repo is favourite: ${t.localizedMessage}")
+                            logger.error("Failed to load if repo is favourite: ${t.message}")
                             false
                         }
                     }
@@ -2612,7 +2612,7 @@ class DetailsViewModel(
                         } catch (e: CancellationException) {
                             throw e
                         } catch (t: Throwable) {
-                            logger.error("Failed to load if repo is starred: ${t.localizedMessage}")
+                            logger.error("Failed to load if repo is starred: ${t.message}")
                             false
                         }
                     }
