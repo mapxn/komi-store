@@ -14,6 +14,8 @@ import org.koin.dsl.module
 import zed.rainxch.core.data.network.createPlatformHttpClient
 import zed.rainxch.core.data.utils.OkioLocalFileSystem
 import zed.rainxch.core.domain.system.LocalFileSystem
+import zed.rainxch.core.data.services.DefaultDownloadedFileStore
+import zed.rainxch.core.domain.system.DownloadedFileStore
 import zed.rainxch.core.data.cache.CacheManager
 import zed.rainxch.core.data.data_source.TokenStore
 import zed.rainxch.core.data.download.MultiSourceDownloaderImpl
@@ -107,6 +109,13 @@ val coreModule =
 
         single<LocalFileSystem> {
             OkioLocalFileSystem()
+        }
+
+        single<DownloadedFileStore> {
+            DefaultDownloadedFileStore(
+                files = get(),
+                platform = get(),
+            )
         }
 
         single<UserSessionRepository> {
