@@ -2,6 +2,8 @@ package zed.rainxch.core.data.download
 
 import okio.Path
 import okio.Path.Companion.toPath
+import zed.rainxch.core.domain.model.installation.InstalledApp
+import zed.rainxch.core.domain.utils.AssetFileName
 import kotlin.random.Random
 
 object DownloadFileName {
@@ -39,4 +41,18 @@ fun downloadedFilePath(
             return null
         }
     return downloadsDir.toPath() / safeName
+}
+
+fun downloadedInstalledFilePath(
+    downloadsDir: String,
+    app: InstalledApp,
+): Path? {
+    val raw = app.installedAssetName?.takeIf { it.isNotBlank() } ?: return null
+    val scoped =
+        AssetFileName.scoped(
+            owner = app.repoOwner,
+            repo = app.repoName,
+            originalName = raw,
+        )
+    return downloadedFilePath(downloadsDir, scoped)
 }

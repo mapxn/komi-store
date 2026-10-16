@@ -9,6 +9,7 @@ import zed.rainxch.core.data.packages.IosAssetPolicy
 import zed.rainxch.core.domain.logging.KomiStoreLogger
 import zed.rainxch.core.domain.model.account.github.GithubAsset
 import zed.rainxch.core.domain.model.system.SystemArchitecture
+import zed.rainxch.core.domain.utils.AssetFileName
 import zed.rainxch.core.domain.system.InstallOutcome
 import zed.rainxch.core.domain.system.Installer
 import zed.rainxch.core.domain.system.InstallerInfoExtractor
@@ -35,8 +36,11 @@ class IosInstaller(
         scope.launch {
             try {
                 val app = installedAppDao.getAppByPackage(packageName) ?: return@launch
-                downloadedFilePath(files.userDownloadsDir(), app.installedAssetName)
-                    ?.let { fileSystem.delete(it, mustExist = false) }
+                app.installedAssetName?.let { raw ->
+                    val scoped = AssetFileName.scoped(app.repoOwner, app.repoName, raw)
+                    downloadedFilePath(files.userDownloadsDir(), scoped)
+                        ?.let { fileSystem.delete(it, mustExist = false) }
+                }
                 installedAppDao.deleteByPackageName(packageName)
             } catch (e: CancellationException) {
                 throw e

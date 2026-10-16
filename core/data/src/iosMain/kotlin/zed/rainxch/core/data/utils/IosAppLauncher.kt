@@ -1,7 +1,7 @@
 package zed.rainxch.core.data.utils
 
 import okio.FileSystem
-import zed.rainxch.core.data.download.downloadedFilePath
+import zed.rainxch.core.data.download.downloadedInstalledFilePath
 import zed.rainxch.core.data.services.FileLocationsProvider
 import zed.rainxch.core.domain.helpers.AppLauncher
 import zed.rainxch.core.domain.helpers.ShareManager
@@ -15,7 +15,7 @@ class IosAppLauncher(
     private val fileSystem: FileSystem = FileSystem.SYSTEM,
 ) : AppLauncher {
     override suspend fun launchApp(installedApp: InstalledApp): Result<Unit> {
-        val path = downloadedFilePath(files.userDownloadsDir(), installedApp.installedAssetName)
+        val path = downloadedInstalledFilePath(files.userDownloadsDir(), installedApp)
         if (path == null || !fileSystem.exists(path)) {
             return Result.failure(IllegalStateException("Downloaded file is missing for ${installedApp.appName}"))
         }
@@ -28,7 +28,7 @@ class IosAppLauncher(
     }
 
     override suspend fun canLaunchApp(installedApp: InstalledApp): Boolean {
-        val path = downloadedFilePath(files.userDownloadsDir(), installedApp.installedAssetName) ?: return false
+        val path = downloadedInstalledFilePath(files.userDownloadsDir(), installedApp) ?: return false
         return fileSystem.exists(path)
     }
 }

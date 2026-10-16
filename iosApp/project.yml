@@ -52,3 +52,15 @@ targets:
           cd "$SRCROOT/.."
           export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
           ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
+  iosAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: iosAppUITests
+    dependencies:
+      - target: iosApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: zed.rainxch.githubstore.uitests
+        TEST_TARGET_NAME: iosApp
+        GENERATE_INFOPLIST_FILE: YES

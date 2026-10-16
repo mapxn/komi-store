@@ -11,6 +11,9 @@ Cross-platform app store for GitHub + Codeberg + Forgejo releases. **Kotlin Mult
 ./gradlew :composeApp:packageDmg :composeApp:packagePkg                # macOS
 ./gradlew :composeApp:packageDeb :composeApp:packageRpm                # Linux
 ./gradlew build                                                        # full
+(cd iosApp && xcodegen generate)                                      # iOS project (committed, regenerate after editing project.yml)
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination "id=<simulator udid>" build   # iOS simulator
+./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64              # iOS framework only
 ```
 
 JDK 21+. Android SDK for Android.
@@ -90,6 +93,7 @@ Kotlin 2.3.10, Compose Multiplatform 1.10.3, Ktor 3.4.0, Room 2.8.4, Koin 4.1.1,
 - **KSafe:** AES-256-GCM with hardware-backed Keystore on Android. Wraps every persisted credential / pref via `core/data/secure/KSafeSafe.kt` extension funcs (`safeGet`, `safePut`, `safeDelete`, `safeGetFlow`) — surface log + return null/false on transient failure instead of throwing through coroutine scopes.
 - **Translation providers:** `TranslationProvider` enum = `GOOGLE`, `YOUDAO`, `LIBRE_TRANSLATE`, `DEEPL`, `MICROSOFT`. Each per-provider config persisted via `TweaksRepository` (KSafe-encrypted). `TranslationRepositoryImpl.resolveTranslator()` picks the impl. LibreTranslate defaults to the bundled `translate.disroot.org` mirror when user URL pref blank. DeepL auto-routes `:fx`-suffixed keys to `api-free.deepl.com`. Microsoft uses No-Trace by default — text never stored, never used for training.
 - **Gradle:** Config + build cache enabled. 4GB Gradle heap, 3GB Kotlin daemon. Official Kotlin style.
+- **iOS (`iosApp/`):** `iosArm64` + `iosSimulatorArm64`, static framework `ComposeApp`, Swift host only. `Platform.IOS` is mobile, `DiscoveryPlatform.Ios`, `tracksInstalledApps` and `tracksDownloadedFiles`. "Install" is "download": `IosInstaller.install()` returns `COMPLETED`, `IosDownloader` writes straight to `Documents/Komi Store Downloads` (visible in Files), `PackageArchiveReader` reads the package id from `.apk` (`AndroidManifest.xml`) and `.ipa` (`Info.plist`). `DownloadedFileStore` flags records whose file was deleted; the Downloaded page shows them as "Deleted" with "Download again". Known limits: HTTP proxy does not carry HTTPS on Darwin, proxy credentials are ignored, language change applies on next launch, no background update checks, no notifications.
 
 ## Active skills (apply on matching domain)
 

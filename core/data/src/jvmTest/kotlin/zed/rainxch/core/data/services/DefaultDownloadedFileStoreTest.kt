@@ -78,7 +78,7 @@ class DefaultDownloadedFileStoreTest {
 
     @Test
     fun iosReportsPresentOnlyWhenTheFileExists() {
-        fileSystem.write(dir / "App.ipa") { writeUtf8("x") }
+        fileSystem.write(dir / "owner_repo_app.ipa") { writeUtf8("x") }
         assertTrue(store(Platform.IOS).isFilePresent(app("App.ipa")))
         assertFalse(store(Platform.IOS).isFilePresent(app("Other.ipa")))
     }
@@ -102,7 +102,7 @@ class DefaultDownloadedFileStoreTest {
 
     @Test
     fun iosDetectsAFileDeletedAfterwards() {
-        val file = dir / "App.ipa"
+        val file = dir / "owner_repo_app.ipa"
         fileSystem.write(file) { writeUtf8("x") }
         val store = store(Platform.IOS)
         assertTrue(store.isFilePresent(app("App.ipa")))
