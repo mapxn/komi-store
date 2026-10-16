@@ -3,10 +3,12 @@ package zed.rainxch.auth.presentation
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import java.net.URLEncoder
 import kotlinx.coroutines.CancellationException
+import zed.rainxch.core.domain.utils.encodeUrlComponent
+import zed.rainxch.core.domain.utils.padStartZero
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -33,6 +35,7 @@ import zed.rainxch.core.domain.helpers.BrowserHelper
 import zed.rainxch.core.domain.helpers.ClipboardHelper
 import zed.rainxch.githubstore.core.presentation.res.*
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Clock
 
 class AuthenticationViewModel(
     private val authenticationRepository: AuthenticationRepository,
@@ -463,7 +466,7 @@ class AuthenticationViewModel(
             start = start,
             remainingSeconds = remainingSeconds,
             progressFraction = (remainingSeconds.toFloat() / total).coerceIn(0f, 1f),
-            formattedTimer = "%02d:%02d".format(minutes, seconds),
+            formattedTimer = "${minutes.padStartZero(2)}:${seconds.padStartZero(2)}",
             isUrgent = remainingSeconds in 1 until 60,
         )
     }
@@ -517,7 +520,7 @@ class AuthenticationViewModel(
         if (loginState !is AuthLoginState.DevicePrompt) return
         val deviceCode = loginState.start.deviceCode
 
-        val sinceLast = System.currentTimeMillis() - lastPollStartedAtMs
+        val sinceLast = Clock.System.now().toEpochMilliseconds() - lastPollStartedAtMs
         if (sinceLast < MIN_MANUAL_POLL_SPACING_MS) {
             logger.debug("Manual poll suppressed — only ${sinceLast}ms since last poll")
             return
@@ -615,14 +618,14 @@ class AuthenticationViewModel(
 
     private fun pollOnce(deviceCode: String) {
 
-        lastPollStartedAtMs = System.currentTimeMillis()
+        lastPollStartedAtMs = Clock.System.now().toEpochMilliseconds()
         viewModelScope.launch {
             doPoll(deviceCode)
         }
     }
 
     private suspend fun doPoll(deviceCode: String) {
-        lastPollStartedAtMs = System.currentTimeMillis()
+        lastPollStartedAtMs = Clock.System.now().toEpochMilliseconds()
         _state.update { it.copy(isPolling = true) }
         try {
             logger.debug("Polling device token (code=${deviceCode.take(8)}..., interval=${pollingIntervalMs}ms, path=$authPath)")
@@ -719,7 +722,7 @@ class AuthenticationViewModel(
         savedStateHandle[KEY_VERIFICATION_URI_COMPLETE] = startUi.verificationUriComplete
         savedStateHandle[KEY_INTERVAL_SEC] = startUi.intervalSec
         savedStateHandle[KEY_EXPIRES_IN_SEC] = startUi.expiresInSec
-        savedStateHandle[KEY_START_TIME_MILLIS] = System.currentTimeMillis()
+        savedStateHandle[KEY_START_TIME_MILLIS] = Clock.System.now().toEpochMilliseconds()
         savedStateHandle[KEY_AUTH_PATH] = path.name
     }
 
@@ -742,7 +745,7 @@ class AuthenticationViewModel(
                 return
             }
 
-        val elapsedSec = ((System.currentTimeMillis() - startTimeMillis) / 1000).toInt()
+        val elapsedSec = ((Clock.System.now().toEpochMilliseconds() - startTimeMillis) / 1000).toInt()
         val remainingSec = expiresInSec - elapsedSec
 
         if (remainingSec <= 0) {
@@ -820,7 +823,7 @@ class AuthenticationViewModel(
 
     private fun buildPrefilledUrl(verificationUri: String, userCode: String): String {
         val separator = if ('?' in verificationUri) "&" else "?"
-        return verificationUri + separator + "user_code=" + URLEncoder.encode(userCode, "UTF-8")
+        return verificationUri + separator + "user_code=" + encodeUrlComponent(userCode)
     }
 
     private fun copyCode(start: GithubDeviceStartUi) {

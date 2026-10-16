@@ -55,6 +55,7 @@ import zed.rainxch.core.domain.system.DownloadOrchestrator
 import zed.rainxch.core.domain.system.DownloadSpec
 import zed.rainxch.core.domain.system.DownloadStage as OrchestratorStage
 import zed.rainxch.core.domain.system.InstallPolicy
+import zed.rainxch.core.domain.system.LocalFileSystem
 import zed.rainxch.core.domain.system.Installer
 import zed.rainxch.core.domain.system.SystemInstallSerializer
 import zed.rainxch.core.domain.use_cases.SyncInstalledAppsUseCase
@@ -67,8 +68,8 @@ import zed.rainxch.core.domain.helpers.ShareManager
 import zed.rainxch.core.presentation.utils.TimeZoneChangeSignal
 import zed.rainxch.core.presentation.utils.formatFileSize
 import zed.rainxch.githubstore.core.presentation.res.*
-import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Clock
 
 class AppsViewModel(
     private val appsRepository: AppsRepository,
@@ -83,6 +84,7 @@ class AppsViewModel(
     private val externalImportRepository: ExternalImportRepository,
     private val systemInstallSerializer: SystemInstallSerializer,
     private val browserHelper: BrowserHelper,
+    private val localFileSystem: LocalFileSystem,
 ) : ViewModel() {
     companion object {
         private const val BANNER_THRESHOLD = 1
@@ -261,7 +263,7 @@ class AppsViewModel(
     }
 
     private fun autoCheckForUpdatesIfNeeded() {
-        val now = System.currentTimeMillis()
+        val now = Clock.System.now().toEpochMilliseconds()
         val lastCheck = maxOf(lastAutoCheckTimestamp, oldestTrackedCheck())
         if (now - lastCheck < UPDATE_CHECK_COOLDOWN_MS) {
             logger.debug("Skipping auto-check: last check was ${(now - lastCheck) / 1000}s ago")
@@ -279,13 +281,13 @@ class AppsViewModel(
     private fun checkAllForUpdates() {
         viewModelScope.launch {
 
-            lastAutoCheckTimestamp = System.currentTimeMillis()
+            lastAutoCheckTimestamp = Clock.System.now().toEpochMilliseconds()
             _state.update { it.copy(isCheckingForUpdates = true) }
             try {
                 syncInstalledAppsUseCase()
                 installedAppsRepository.checkAllForUpdates()
                 _state.update {
-                    it.copy(lastCheckedTimestamp = System.currentTimeMillis())
+                    it.copy(lastCheckedTimestamp = Clock.System.now().toEpochMilliseconds())
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -303,7 +305,7 @@ class AppsViewModel(
             try {
                 syncInstalledAppsUseCase()
                 installedAppsRepository.checkAllForUpdates()
-                val now = System.currentTimeMillis()
+                val now = Clock.System.now().toEpochMilliseconds()
                 lastAutoCheckTimestamp = now
                 _state.update { it.copy(lastCheckedTimestamp = now) }
             } catch (e: CancellationException) {
@@ -1200,7 +1202,6 @@ class AppsViewModel(
 
                     val existingPath = downloader.getDownloadedFilePath(latestAssetName)
                     if (existingPath != null) {
-                        val file = File(existingPath)
                         try {
                             val apkInfo =
                                 installer.getApkInfoExtractor().extractPackageInfo(existingPath)
@@ -1209,14 +1210,14 @@ class AppsViewModel(
                             val normalizedLatest =
                                 latestVersion.removePrefix("v").removePrefix("V")
                             if (normalizedExisting != normalizedLatest) {
-                                val deleted = file.delete()
+                                val deleted = localFileSystem.delete(existingPath)
                                 logger.debug("Deleted mismatched existing file ($normalizedExisting != $normalizedLatest): $deleted")
                             }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
                             logger.debug("Failed to extract APK info for existing file: ${e.message}")
-                            val deleted = file.delete()
+                            val deleted = localFileSystem.delete(existingPath)
                             logger.debug("Deleted unextractable existing file: $deleted")
                         }
                     }
@@ -1627,7 +1628,7 @@ class AppsViewModel(
             }
 
             app.pendingInstallFilePath?.let { path ->
-                runCatching { File(path).takeIf { it.exists() }?.delete() }
+                runCatching { localFileSystem.delete(path) }
                     .onFailure {
                         logger.warn(
                             "discardPendingInstall: failed to delete parked file: ${it.message}",
@@ -2089,7 +2090,7 @@ class AppsViewModel(
             _state.update { it.copy(isExporting = true) }
             try {
                 val json = appsRepository.exportApps()
-                val fileName = "github-store-apps-${System.currentTimeMillis()}.json"
+                val fileName = "github-store-apps-${Clock.System.now().toEpochMilliseconds()}.json"
                 shareManager.shareFile(fileName, json)
             } catch (e: CancellationException) {
                 throw e
@@ -2139,7 +2140,7 @@ class AppsViewModel(
             _state.update { it.copy(isExporting = true) }
             try {
                 val json = appsRepository.exportObtainium()
-                val fileName = "github-store-obtainium-${System.currentTimeMillis()}.json"
+                val fileName = "github-store-obtainium-${Clock.System.now().toEpochMilliseconds()}.json"
                 shareManager.shareFile(fileName, json)
             } catch (e: CancellationException) {
                 throw e

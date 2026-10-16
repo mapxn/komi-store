@@ -72,6 +72,7 @@ val viewModelsModule =
                 apkInspector = get(),
                 userSessionRepository = get(),
                 systemInstallSerializer = get(),
+                localFileSystem = get(),
             )
         }
         viewModel { params ->

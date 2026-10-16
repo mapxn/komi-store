@@ -4,7 +4,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
-import java.security.MessageDigest
+import zed.rainxch.core.domain.utils.sha256
+import zed.rainxch.core.domain.utils.toHex
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -96,16 +97,7 @@ internal class YoudaoTranslator(
         }
     }
 
-    private fun sha256Hex(input: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(input.encodeToByteArray())
-        return buildString(digest.size * 2) {
-            for (byte in digest) {
-                val v = byte.toInt() and 0xff
-                if (v < 0x10) append('0')
-                append(v.toString(16))
-            }
-        }
-    }
+    private fun sha256Hex(input: String): String = sha256(input.encodeToByteArray()).toHex()
 
     private fun mapLanguageCode(code: String): String =
         when (code.lowercase()) {

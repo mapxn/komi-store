@@ -17,5 +17,10 @@ kotlin {
                 implementation(libs.bundles.koin.common)
             }
         }
+        jvmTest {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
     }
 }

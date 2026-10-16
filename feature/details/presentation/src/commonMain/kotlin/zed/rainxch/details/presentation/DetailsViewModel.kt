@@ -52,6 +52,7 @@ import zed.rainxch.core.domain.repository.TweaksRepository
 import zed.rainxch.core.domain.system.ApkInspector
 import zed.rainxch.core.domain.system.DownloadOrchestrator
 import zed.rainxch.core.domain.system.DownloadSpec
+import zed.rainxch.core.domain.system.LocalFileSystem
 import zed.rainxch.core.domain.system.DownloadStage as OrchestratorStage
 import zed.rainxch.core.domain.system.InstallOutcome
 import zed.rainxch.core.domain.system.InstallPolicy
@@ -114,8 +115,6 @@ import zed.rainxch.githubstore.core.presentation.res.update_package_mismatch
 import zed.rainxch.githubstore.core.presentation.res.variant_first_pin_toast
 import zed.rainxch.githubstore.core.presentation.res.variant_first_pin_toast_generic
 import zed.rainxch.githubstore.core.presentation.res.variant_unpinned_toast
-import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock.System
 import kotlin.time.ExperimentalTime
@@ -148,6 +147,7 @@ class DetailsViewModel(
     private val apkInspector: ApkInspector,
     private val systemInstallSerializer: zed.rainxch.core.domain.system.SystemInstallSerializer,
     private val userSessionRepository: UserSessionRepository,
+    private val localFileSystem: LocalFileSystem,
     private val packageNameParam: String? = null,
 ) : ViewModel() {
     private var hasLoadedInitialData = false
@@ -180,7 +180,7 @@ class DetailsViewModel(
     private val _events = Channel<DetailsEvent>(capacity = Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    private val rateLimited = AtomicBoolean(false)
+    private val rateLimited = MutableStateFlow(false)
 
     fun confirmUninstall() {
         _state.update { it.copy(showUninstallConfirmation = false) }
@@ -1980,8 +1980,7 @@ class DetailsViewModel(
         if (parkedAsset != assetName) return null
 
         return try {
-            val file = File(parkedPath)
-            if (file.exists() && file.length() > 0) parkedPath else null
+            if (localFileSystem.size(parkedPath) > 0) parkedPath else null
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {
@@ -2555,7 +2554,7 @@ class DetailsViewModel(
     private fun loadInitial() {
         viewModelScope.launch {
             try {
-                rateLimited.set(false)
+                rateLimited.value = false
 
                 _state.value = _state.value.copy(isLoading = true, errorMessage = null)
 
@@ -2594,7 +2593,7 @@ class DetailsViewModel(
                         try {
                             favouritesRepository.isFavoriteSync(repo.id)
                         } catch (_: RateLimitException) {
-                            rateLimited.set(true)
+                            rateLimited.value = true
                             null
                         } catch (e: CancellationException) {
                             throw e
@@ -2608,7 +2607,7 @@ class DetailsViewModel(
                         try {
                             starredRepository.isStarred(repo.id)
                         } catch (_: RateLimitException) {
-                            rateLimited.set(true)
+                            rateLimited.value = true
                             null
                         } catch (e: CancellationException) {
                             throw e
@@ -2640,7 +2639,7 @@ class DetailsViewModel(
                                 sourceHost = sourceHostParam,
                             ) to false
                         } catch (_: RateLimitException) {
-                            rateLimited.set(true)
+                            rateLimited.value = true
                             emptyList<GithubRelease>() to true
                         } catch (e: CancellationException) {
                             throw e
@@ -2659,7 +2658,7 @@ class DetailsViewModel(
                                 sourceHost = sourceHostParam,
                             )
                         } catch (_: RateLimitException) {
-                            rateLimited.set(true)
+                            rateLimited.value = true
                             null
                         } catch (e: CancellationException) {
                             throw e
@@ -2678,7 +2677,7 @@ class DetailsViewModel(
                                 sourceHost = sourceHostParam,
                             )
                         } catch (_: RateLimitException) {
-                            rateLimited.set(true)
+                            rateLimited.value = true
                             null
                         } catch (e: CancellationException) {
                             throw e
@@ -2694,7 +2693,7 @@ class DetailsViewModel(
                         try {
                             detailsRepository.getUserProfile(owner)
                         } catch (_: RateLimitException) {
-                            rateLimited.set(true)
+                            rateLimited.value = true
                             null
                         } catch (e: CancellationException) {
                             throw e
@@ -2724,7 +2723,7 @@ class DetailsViewModel(
                                 }
                             }
                         } catch (_: RateLimitException) {
-                            rateLimited.set(true)
+                            rateLimited.value = true
                             emptyList()
                         } catch (e: CancellationException) {
                             throw e
@@ -2748,7 +2747,7 @@ class DetailsViewModel(
                         ?.let { pkg -> allInstalledApps.firstOrNull { it.packageName == pkg } }
                         ?: pickPrimaryInstalledApp(allInstalledApps, null, emptyList())
 
-                if (rateLimited.get()) {
+                if (rateLimited.value) {
 
                     _state.value = _state.value.copy(
                         isLoading = false,

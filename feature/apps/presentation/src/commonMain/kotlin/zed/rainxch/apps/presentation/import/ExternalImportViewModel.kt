@@ -53,6 +53,7 @@ import zed.rainxch.githubstore.core.presentation.res.external_import_search_erro
 import zed.rainxch.githubstore.core.presentation.res.external_import_undo_failed
 import zed.rainxch.githubstore.core.presentation.res.external_import_undo_linked
 import zed.rainxch.githubstore.core.presentation.res.external_import_undo_skipped
+import kotlin.time.Clock
 
 class ExternalImportViewModel(
     private val externalImportRepository: ExternalImportRepository,
@@ -208,7 +209,7 @@ class ExternalImportViewModel(
                     it.copy(
                         phase = ImportPhase.Scanning,
                         errorMessage = null,
-                        scanStartedAtMs = System.currentTimeMillis(),
+                        scanStartedAtMs = Clock.System.now().toEpochMilliseconds(),
                         isSkipAvailable = false,
                     )
                 }

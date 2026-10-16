@@ -1,24 +1,18 @@
 package zed.rainxch.auth.data.crypto
 
-import java.security.MessageDigest
-import java.security.SecureRandom
+import zed.rainxch.core.domain.utils.secureRandomBytes
+import zed.rainxch.core.domain.utils.sha256
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
-
 @OptIn(ExperimentalEncodingApi::class)
 object PkceGenerator {
-    private val secureRandom = SecureRandom()
     private val b64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
 
     fun generate(): PkceTriplet {
-        val stateBytes = ByteArray(STATE_BYTES).also { secureRandom.nextBytes(it) }
-        val verifierBytes = ByteArray(VERIFIER_BYTES).also { secureRandom.nextBytes(it) }
-
-        val state = b64.encode(stateBytes)
-        val codeVerifier = b64.encode(verifierBytes)
-        val digest = MessageDigest.getInstance("SHA-256").digest(codeVerifier.encodeToByteArray())
-        val codeChallenge = b64.encode(digest)
+        val state = b64.encode(secureRandomBytes(STATE_BYTES))
+        val codeVerifier = b64.encode(secureRandomBytes(VERIFIER_BYTES))
+        val codeChallenge = b64.encode(sha256(codeVerifier.encodeToByteArray()))
 
         return PkceTriplet(
             state = state,

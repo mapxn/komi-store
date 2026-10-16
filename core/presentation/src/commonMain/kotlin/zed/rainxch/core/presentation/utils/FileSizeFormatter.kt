@@ -1,5 +1,7 @@
 package zed.rainxch.core.presentation.utils
 
+import zed.rainxch.core.domain.utils.formatFixed
+
 fun formatFileSize(
     bytes: Long,
     decimals: Int = 1,
@@ -14,5 +16,5 @@ fun formatFileSize(
         index++
     }
 
-    return "%.${decimals}f ${units[index]}".format(size)
+    return "${size.formatFixed(decimals)} ${units[index]}"
 }

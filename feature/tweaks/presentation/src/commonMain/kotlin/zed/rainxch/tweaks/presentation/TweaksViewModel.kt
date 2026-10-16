@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import zed.rainxch.core.domain.isDesktop
+import zed.rainxch.core.domain.utils.formatFixed
 import zed.rainxch.core.domain.model.settings.ProxyConfig
 import zed.rainxch.core.domain.model.settings.ProxyScope
 import zed.rainxch.core.domain.model.settings.TranslationProvider
@@ -162,7 +163,7 @@ class TweaksViewModel(
         return if (size == size.toLong().toDouble()) {
             "${size.toLong()} ${units[unitIndex]}"
         } else {
-            "${"%.1f".format(size)} ${units[unitIndex]}"
+            "${size.formatFixed(1)} ${units[unitIndex]}"
         }
     }
 

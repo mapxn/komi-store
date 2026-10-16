@@ -5,6 +5,7 @@ import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -31,7 +32,7 @@ import zed.rainxch.core.domain.logging.KomiStoreLogger
 import zed.rainxch.core.domain.model.account.github.GithubDeviceStart
 import zed.rainxch.core.domain.model.account.github.GithubDeviceTokenSuccess
 import zed.rainxch.feature.auth.data.BuildKonfig
-import java.util.concurrent.TimeoutException
+import kotlin.time.Clock
 
 class AuthenticationRepositoryImpl(
     private val tokenStore: TokenStore,
@@ -100,7 +101,7 @@ class AuthenticationRepositoryImpl(
         withContext(Dispatchers.IO) {
             val clientId = BuildKonfig.GITHUB_CLIENT_ID
             val timeoutMs = start.expiresInSec * 1000L
-            val startTime = System.currentTimeMillis()
+            val startTime = Clock.System.now().toEpochMilliseconds()
 
             val initialJitter = (0..2000).random().toLong()
             delay(initialJitter)
@@ -113,8 +114,8 @@ class AuthenticationRepositoryImpl(
             logger.debug("⏱️ Polling started. Timeout: ${start.expiresInSec}s, Interval: ${start.intervalSec}s")
 
             while (isActive) {
-                if (System.currentTimeMillis() - startTime >= timeoutMs) {
-                    throw TimeoutException(
+                if (Clock.System.now().toEpochMilliseconds() - startTime >= timeoutMs) {
+                    throw DevicePollTimeoutException(
                         "Authentication timed out after ${start.expiresInSec} seconds. Please try again.",
                     )
                 }
@@ -223,7 +224,7 @@ class AuthenticationRepositoryImpl(
                     }
                 } catch (e: CancellationException) {
                     throw e
-                } catch (e: TimeoutException) {
+                } catch (e: DevicePollTimeoutException) {
                     throw e
                 } catch (e: Exception) {
                     consecutiveUnknownErrors++
@@ -376,7 +377,7 @@ class AuthenticationRepositoryImpl(
                             scope = null,
                             refreshToken = null,
                             refreshTokenExpiresIn = null,
-                            savedAtEpochMillis = System.currentTimeMillis(),
+                            savedAtEpochMillis = Clock.System.now().toEpochMilliseconds(),
                         )
                     saveTokenWithVerification(dto.toDomain())
                     accessToken
@@ -417,7 +418,7 @@ class AuthenticationRepositoryImpl(
                 scope = null,
                 refreshToken = null,
                 refreshTokenExpiresIn = null,
-                savedAtEpochMillis = System.currentTimeMillis(),
+                savedAtEpochMillis = Clock.System.now().toEpochMilliseconds(),
             )
 
             try {
@@ -466,3 +467,5 @@ class AuthenticationRepositoryImpl(
             errorMsg.contains("host unreachable") ||
             errorMsg.contains("network error")
 }
+
+private class DevicePollTimeoutException(message: String) : Exception(message)
