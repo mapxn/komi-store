@@ -7,6 +7,8 @@
 
 为 Komi Store 增加 iOS 目标,复用现有 KMP 与 Compose Multiplatform 代码。iOS 不允许应用安装第三方二进制,因此 iOS 版本把"下载并安装"改为"仅下载并保存",把"已安装应用"改为"已下载应用"。其余功能与现有版本保持一致。
 
+iOS 版同时支持 `.ipa` 与 `.apk` 两种安装包。设备平台使用项目已有的 `DiscoveryPlatform.Ios`:首页、搜索、发现页按 iOS 过滤并以 `.ipa` 为主要下载资源,同时允许下载 `.apk`。应用标识沿用各自平台的原生做法:`.apk` 用 APK 里的安卓包名(与安卓一致),`.ipa` 用 `Info.plist` 里的 Bundle ID。
+
 技术上遵循原项目约定:`build-logic` 约定插件、`expect/actual`、Koin 平台模块(`corePlatformModule`)、`FileLocationsProvider` 等接口,不引入新的结构。
 
 ## 2. 范围
@@ -53,12 +55,12 @@
 | 接口/声明 | iOS 实现要点 |
 |---|---|
 | `createPlatformHttpClient` | Ktor Darwin 引擎,代理沿用现有 `ProxyConfig`,HTTP 与 SOCKS 通过引擎的 `proxy` 配置。已知限制:Ktor 文档说明 Darwin 引擎的 HTTP 代理不支持 HTTPS 请求,GitHub 接口都是 HTTPS,因此 iOS 上 HTTP 代理实际无效,SOCKS 与系统代理可用 |
-| `Downloader` | 用上面的 Ktor 客户端流式下载,okio 写文件,保留进度 Flow、取消、`GithubAssetAuth` 令牌注入 |
+| `Downloader` | 用上面的 Ktor 客户端流式下载,okio 写文件,直接保存到 `userDownloadsDir()`(与桌面端一致),先写 `.part` 临时文件再改名,保留进度 Flow、取消、`GithubAssetAuth` 令牌注入 |
 | `FileLocationsProvider` | `appDownloadsDir()` 用缓存目录,`userDownloadsDir()` 用 Documents 下的 `Komi Store Downloads` |
-| `Installer` | 不安装系统。`install()` 把下载好的文件从缓存目录复制到 `userDownloadsDir()` 并返回 `COMPLETED`,现有"下载后安装并记录"的流程因此原样复用。常见发布包扩展名都视为可下载,APK 优先 |
+| `Installer` | 不安装系统。文件已由下载器保存到 `userDownloadsDir()`,`install()` 直接返回 `COMPLETED`,现有"下载后安装并记录"的流程因此原样复用。`.ipa` 与 `.apk` 视为可下载,`.ipa` 优先;`uninstall()` 删除对应文件与记录 |
 | `InstallerStatusProvider`、`PackageMonitor`、`ExternalAppScanner`、`AggressiveOemDetector`、`UpdateScheduleManager`、`PendingInstallNotifier`、`DownloadProgressNotifier` | 无操作实现,`PackageMonitor.canEnumerateInstalledPackages()` 为 false |
 | `DigestVerifier` | 基于 okio 的 SHA-256 |
-| `InstallerInfoExtractor` | 解析 APK 的 `AndroidManifest.xml` 获取包名与版本(见第 6 节),非 APK 返回 null |
+| `InstallerInfoExtractor` | `.apk`:读取 `AndroidManifest.xml`;`.ipa`:读取 `Payload/*.app/Info.plist`(见第 6 节);其他文件返回 null |
 | `ApkInspector` | 无操作实现 |
 | `BrowserHelper`、`ClipboardHelper`、`ShareManager`、`AppLauncher` | `UIApplication.open`、`UIPasteboard`、`UIActivityViewController`;`AppLauncher` 改为导出/分享文件 |
 | `LocalizationManager`、`getSystemLocaleTag`、`getOsVersion`、`getPlatform` | 读取系统 locale 与系统版本 |
@@ -71,22 +73,22 @@ KSafe 与 moko-permissions 的 iOS 支持需要在实施计划第一步验证(�
 
 ## 5. 功能开关
 
-沿用现有 `Platform` 与 `isMobile`/`isDesktop` 的做法,新增能力判断(如 `canInstall`、`supportsBackgroundUpdates`),由 `Platform.IOS` 派生,供 presentation 层使用:
+沿用现有 `Platform` 与 `isMobile`/`isDesktop` 的做法,新增 `isIos()` 与 `Platform.tracksInstalledApps`,供 presentation 层使用:
 
-- 详情页:`canInstall = false` 时按钮文案与动作改为下载。
+- 详情页与已下载页:iOS 上"安装""已安装""安装中""卸载"的文案改为"下载""已下载""保存中""删除"。
 - 设置页:iOS 只保留"更新"分组里的"包含预发布版本"和"已跳过的更新"入口;"检查更新开关与间隔"属于后台更新,安装方式、自动更新、电池优化都是安卓专属,在 iOS 上隐藏。
 - 导航:iOS 保留底部导航,Apps 入口显示为"已下载"。
 - Apps 页内:隐藏"关联已装应用""Obtainium 导入导出""查看 APK 清单"入口。
 
-安卓与桌面行为在开关为默认值时不变。`Platform` 新增 `IOS`,并新增 `tracksInstalledApps`(安卓与 iOS 为 true),原来用 `platform == Platform.ANDROID` 判断"是否记录已安装应用"的地方改用它;Obtainium、App Manager、静默安装等真正只属于安卓的判断保持原样。`isMobile` 包含 iOS,原来用 `isAndroid()` 判断下拉刷新的地方改用 `isMobile()`。
+安卓与桌面行为在开关为默认值时不变。`Platform` 新增 `IOS`,并新增 `tracksInstalledApps`(安卓与 iOS 为 true),原来用 `platform == Platform.ANDROID` 判断"是否记录已安装应用"的地方改用它;Obtainium、App Manager、静默安装等真正只属于安卓的判断保持原样。`isMobile` 包含 iOS,原来用 `isAndroid()` 判断下拉刷新的地方改用 `isMobile()`。`Platform.IOS.toDiscoveryPlatform()` 返回 `DiscoveryPlatform.Ios`。
 
 ## 6. "已下载应用"页
 
 复用 Apps 页与 `InstalledAppsRepository`,不拆分、不重写 `AppsViewModel`。通过第 5 节的能力开关调整文案与可见入口。
 
 - 下载完成后写入一条 `InstalledApp` 记录(仓库、版本、资源名、文件路径),`installSource` 使用现有的 `THIS_APP`。
-- `packageName` 是数据库主键,沿用安卓包名,与安卓一致。安卓通过 `PackageManager` 读取 APK 得到包名,iOS 没有该能力,因此 iOS 的 `InstallerInfoExtractor` 直接解析下载的 APK:按 zip 读取 `AndroidManifest.xml`,解析二进制 XML 得到 `packageName`、`versionName`、`versionCode`。`ApkPackageInfo.appName` 在清单里是资源引用,iOS 不解析 `resources.arsc`,用仓库名代替。`signingFingerprint` 为 null,现有 `checkSigningFingerprint` 在为 null 时按通过处理。
-- 非 APK 文件(`.dmg`、`.exe`、`.deb`、`.zip` 等)没有安卓包名,`InstallerInfoExtractor` 返回 null。此时 iOS 回退到备用标识 `ios:<sourceHost 或 github.com>/<owner>/<repo>`;同一仓库发布多个文件时,复用现有 `AssetVariant`/`AssetOwnership` 的指纹追加后缀以区分。
+- `packageName` 是数据库主键,沿用各平台原生标识。`.apk`:沿用安卓包名,与安卓一致。安卓通过 `PackageManager` 读取 APK 得到包名,iOS 没有该能力,因此 iOS 的 `InstallerInfoExtractor` 直接解析下载的 APK:按 zip 读取 `AndroidManifest.xml`,解析二进制 XML 得到 `packageName`、`versionName`、`versionCode`;清单里的应用名是资源引用,iOS 不解析 `resources.arsc`,用仓库名代替。`.ipa`:按 zip 读取 `Payload/*.app/Info.plist`,解析二进制或 XML 属性列表,`packageName` 取 `CFBundleIdentifier`,`versionName` 取 `CFBundleShortVersionString`,`versionCode` 取 `CFBundleVersion` 的整数值(无法转为整数时为 0),应用名取 `CFBundleDisplayName`,没有时取 `CFBundleName`,再没有时用仓库名。两种格式的 `signingFingerprint` 都为 null,现有 `checkSigningFingerprint` 在为 null 时按通过处理。
+- 其他类型的文件在 iOS 上不提供下载按钮,所以不需要备用标识。
 - 同一个包名下的不同架构变体(如 arm64 与 x86)与安卓行为一致,按同一条记录处理。
 - 更新时沿用现有的包名一致性校验:新下载文件的包名与已记录的不一致时,与安卓一样提示不匹配。
 - 更新检查:沿用"回到应用时检查,30 分钟冷却"和下拉刷新。有新版本时显示角标,"更新"即下载新版本,新版本下载完成后替换记录并删除旧文件。
@@ -118,5 +120,6 @@ KSafe 与 moko-permissions 的 iOS 支持需要在实施计划第一步验证(�
 - 本机模拟器运行时是 iOS 17.2 和 17.4,而 Xcode 自带 SDK 是 iOS 27.0。若 Xcode 不能在这些运行时上运行用 27.0 SDK 构建的应用,需要下载较新的模拟器运行时(约数 GB),届时先征求用户同意。
 - 本机没有 `local.properties`,且 Android SDK 只有 `android-35` 平台,而 `compileSdk` 为 36。安卓回归构建依赖 AGP 自动下载平台 36;若失败,回归改为桌面端编译,并在汇报里明确说明安卓构建未能验证。
 - Apps 页代码量大,功能开关需要逐处排查入口,遗漏会造成 iOS 上出现无效按钮。阶段 3 需要逐项点击检查。
-- iOS 上解析 APK 清单需要新写一个小型的 zip 读取与二进制 XML 解析器(优先使用项目已间接依赖的 Okio 读取 zip,实施时确认其是否可用)。用真实 APK 样本做单元测试,覆盖正常文件、损坏文件与非 APK 文件。
+- iOS 上解析安装包需要新写三个小型解析器:APK 的二进制 `AndroidManifest.xml`、IPA 里的二进制属性列表与 XML 属性列表,zip 读取使用 Okio 的 `FileSystem.openZip`(其 JVM 公共 API 已确认存在,iOS 目标是否可用在第一次编译时确认,不可用则暂停商量)。用 `aapt2` 生成的最小 APK 和 `plutil` 生成的最小 IPA 做单元测试,覆盖正常文件、损坏文件与不含清单的文件。
+- 首页与搜索使用 `DiscoveryPlatform.Ios`,项目里部分后端缓存路径对 `Ios` 返回 null(回退到其他数据源)。阶段 2 要在模拟器确认首页和搜索确实有内容,没有则排查回退路径,仍不行再与用户商量是否默认用"全部"平台。
 - 没有 Apple 开发者账号时只能在模拟器验证,真机运行与分发不在本次范围内。
