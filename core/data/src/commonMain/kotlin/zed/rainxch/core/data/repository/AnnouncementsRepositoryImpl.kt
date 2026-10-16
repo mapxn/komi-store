@@ -33,7 +33,7 @@ class AnnouncementsRepositoryImpl(
     private val json = Json { ignoreUnknownKeys = true }
 
     private val platformTag: String = when (getPlatform()) {
-        Platform.ANDROID -> "ANDROID"
+        Platform.ANDROID, Platform.IOS -> "ANDROID"
         Platform.WINDOWS, Platform.MACOS, Platform.LINUX -> "DESKTOP"
     }
 

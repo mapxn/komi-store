@@ -145,5 +145,6 @@ class FeedbackViewModel(
             Platform.WINDOWS -> "Windows"
             Platform.MACOS -> "macOS"
             Platform.LINUX -> "Linux"
+            Platform.IOS -> "iOS"
         }
 }

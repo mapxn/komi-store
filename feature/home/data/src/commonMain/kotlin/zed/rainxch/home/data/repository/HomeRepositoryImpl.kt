@@ -580,6 +580,13 @@ class HomeRepositoryImpl(
                 if (desc.contains("android") || desc.contains("apk")) score += 3
             }
 
+            Platform.IOS -> {
+                if (topics.contains("ios")) score += 10
+                if (topics.contains("mobile")) score += 5
+                if (language == "swift" || language == "objective-c") score += 5
+                if (desc.contains("ios") || desc.contains("ipa")) score += 3
+            }
+
             Platform.WINDOWS, Platform.MACOS, Platform.LINUX -> {
                 if (topics.any {
                         it in
@@ -642,6 +649,10 @@ class HomeRepositoryImpl(
                         Platform.LINUX -> {
                             name.endsWith(".appimage") || name.endsWith(".deb") ||
                                 name.endsWith(".rpm") || name.endsWith(".pkg.tar.zst")
+                        }
+
+                        Platform.IOS -> {
+                            name.endsWith(".ipa") || name.endsWith(".apk")
                         }
                     }
                 }

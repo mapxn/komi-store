@@ -10,6 +10,8 @@ expect fun getSystemLocaleTag(): String
 
 fun isAndroid(): Boolean = getPlatform() == Platform.ANDROID
 
+fun isIos(): Boolean = getPlatform() == Platform.IOS
+
 fun isDesktop(): Boolean = getPlatform().isDesktop
 
 fun isMobile(): Boolean = getPlatform().isMobile

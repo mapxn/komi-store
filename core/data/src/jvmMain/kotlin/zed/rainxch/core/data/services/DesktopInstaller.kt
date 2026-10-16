@@ -76,7 +76,7 @@ class DesktopInstaller(
 
         val hasValidExtension =
             when (platform) {
-                Platform.ANDROID -> {
+                Platform.ANDROID, Platform.IOS -> {
                     name.endsWith(".apk")
                 }
 
@@ -106,7 +106,7 @@ class DesktopInstaller(
 
         val priority =
             when (platform) {
-                Platform.ANDROID -> {
+                Platform.ANDROID, Platform.IOS -> {
                     listOf(".apk")
                 }
 

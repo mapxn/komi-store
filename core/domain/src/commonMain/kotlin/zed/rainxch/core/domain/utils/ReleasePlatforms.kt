@@ -15,6 +15,7 @@ fun Platform.toDiscoveryPlatform(): DiscoveryPlatform =
         Platform.WINDOWS -> DiscoveryPlatform.Windows
         Platform.MACOS -> DiscoveryPlatform.Macos
         Platform.LINUX -> DiscoveryPlatform.Linux
+        Platform.IOS -> DiscoveryPlatform.Ios
     }
 
 fun GithubRelease.platforms(): Set<DiscoveryPlatform> =

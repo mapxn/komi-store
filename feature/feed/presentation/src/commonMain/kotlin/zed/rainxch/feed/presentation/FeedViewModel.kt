@@ -324,6 +324,7 @@ class FeedViewModel(
         Platform.WINDOWS -> DiscoveryPlatform.Windows
         Platform.MACOS -> DiscoveryPlatform.Macos
         Platform.LINUX -> DiscoveryPlatform.Linux
+        Platform.IOS -> DiscoveryPlatform.Ios
     }
 
     private fun observeInstalledApps() {
