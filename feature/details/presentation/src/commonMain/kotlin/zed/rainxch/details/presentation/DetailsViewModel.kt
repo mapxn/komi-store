@@ -52,6 +52,7 @@ import zed.rainxch.core.domain.repository.TweaksRepository
 import zed.rainxch.core.domain.system.ApkInspector
 import zed.rainxch.core.domain.system.DownloadOrchestrator
 import zed.rainxch.core.domain.system.DownloadSpec
+import zed.rainxch.core.domain.system.DownloadedFileStore
 import zed.rainxch.core.domain.system.LocalFileSystem
 import zed.rainxch.core.domain.system.DownloadStage as OrchestratorStage
 import zed.rainxch.core.domain.system.InstallOutcome
@@ -69,6 +70,7 @@ import zed.rainxch.core.domain.utils.AssetOwnership
 import zed.rainxch.core.domain.utils.AssetVariant
 import zed.rainxch.core.domain.utils.ReleaseLines
 import zed.rainxch.core.domain.utils.VersionMath
+import zed.rainxch.core.domain.helpers.AppLauncher
 import zed.rainxch.core.domain.helpers.BrowserHelper
 import zed.rainxch.core.domain.helpers.ShareManager
 import zed.rainxch.details.domain.model.ApkValidationResult
@@ -148,6 +150,8 @@ class DetailsViewModel(
     private val systemInstallSerializer: zed.rainxch.core.domain.system.SystemInstallSerializer,
     private val userSessionRepository: UserSessionRepository,
     private val localFileSystem: LocalFileSystem,
+    private val appLauncher: AppLauncher,
+    private val downloadedFileStore: DownloadedFileStore,
     private val packageNameParam: String? = null,
 ) : ViewModel() {
     private var hasLoadedInitialData = false
@@ -1173,7 +1177,8 @@ class DetailsViewModel(
             installedAppsRepository
                 .getAppsByRepoIdAsFlow(repoId)
                 .distinctUntilChanged()
-                .collect { apps ->
+                .collect { allApps ->
+                    val apps = allApps.filter { downloadedFileStore.isFilePresent(it) }
 
                     val primaryAssetName = _state.value.primaryAsset?.name
                     val releaseAssets = _state.value.installableAssets
@@ -1518,6 +1523,18 @@ class DetailsViewModel(
 
     private fun openApp() {
         val installedApp = _state.value.installedApp ?: return
+        if (platform.tracksDownloadedFiles) {
+            viewModelScope.launch {
+                if (appLauncher.launchApp(installedApp).isFailure) {
+                    _events.send(
+                        DetailsEvent.OnMessage(
+                            getString(Res.string.failed_to_open_app, installedApp.appName),
+                        ),
+                    )
+                }
+            }
+            return
+        }
         val launched = installer.openApp(installedApp.packageName)
         if (!launched) {
             viewModelScope.launch {
@@ -1728,7 +1745,7 @@ class DetailsViewModel(
                 VersionHelper.normalizeVersion(
                     installedApp.installedVersion,
                 ) &&
-                platform == Platform.ANDROID
+                platform.tracksInstalledApps
             ) {
                 val isDowngrade =
                     VersionHelper.isDowngradeVersion(
@@ -1786,7 +1803,7 @@ class DetailsViewModel(
                         throw e
                     }
 
-                if (platform == Platform.ANDROID) {
+                if (platform.tracksInstalledApps) {
                     saveInstalledAppToDatabase(
                         apkInfo = warning.pendingApkInfo,
                         assetName = warning.pendingAssetName,
@@ -2101,7 +2118,7 @@ class DetailsViewModel(
                         },
                     )
 
-                    if (platform == Platform.ANDROID) {
+                    if (platform.tracksInstalledApps) {
                         val filePath = entry.filePath
                         if (filePath != null) {
                             runCatching {
@@ -2193,10 +2210,10 @@ class DetailsViewModel(
         _state.value = _state.value.copy(downloadStage = DownloadStage.INSTALLING)
 
         val ext = assetName.substringAfterLast('.', "").lowercase()
-        val isApk = ext == "apk"
+        val hasPackageMetadata = ext == "apk" || ext == "ipa"
         var validatedApkInfo: ApkPackageInfo? = null
 
-        if (isApk) {
+        if (hasPackageMetadata) {
             val validationResult =
                 installationManager.validateApk(
                     filePath = filePath,
@@ -2292,7 +2309,7 @@ class DetailsViewModel(
 
         launchAttestationCheck(filePath)
 
-        if (platform == Platform.ANDROID && validatedApkInfo != null) {
+        if (platform.tracksInstalledApps && validatedApkInfo != null) {
             saveInstalledAppToDatabase(
                 apkInfo = validatedApkInfo,
                 assetName = assetName,
@@ -2303,7 +2320,7 @@ class DetailsViewModel(
                 installOutcome = installOutcome,
                 parkedFilePath = filePath,
             )
-        } else if (platform != Platform.ANDROID) {
+        } else if (!platform.tracksInstalledApps || platform.tracksDownloadedFiles) {
             viewModelScope.launch {
                 _events.send(DetailsEvent.OnMessage(getString(Res.string.installer_saved_downloads)))
             }
@@ -2706,7 +2723,10 @@ class DetailsViewModel(
                 val installedAppsDeferred =
                     async {
                         try {
-                            val dbApps = installedAppsRepository.getAppsByRepoId(repo.id)
+                            val dbApps =
+                                installedAppsRepository
+                                    .getAppsByRepoId(repo.id)
+                                    .filter { downloadedFileStore.isFilePresent(it) }
 
                             dbApps.map { dbApp ->
                                 if (dbApp.isPendingInstall &&

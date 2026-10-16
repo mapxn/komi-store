@@ -104,7 +104,7 @@ class InstallationManagerImpl(
                     latestAssetName = null,
                     latestAssetUrl = null,
                     latestAssetSize = null,
-                    appName = apkInfo.appName,
+                    appName = apkInfo.appName.ifBlank { repo.name },
                     installSource = InstallSource.THIS_APP,
                     installedAt = System.now().toEpochMilliseconds(),
                     lastCheckedAt = System.now().toEpochMilliseconds(),
