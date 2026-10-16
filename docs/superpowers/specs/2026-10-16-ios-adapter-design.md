@@ -56,7 +56,8 @@
 | `Installer` | 不安装。`isSupported` 恒为 false,其余方法为无操作 |
 | `InstallerStatusProvider`、`PackageMonitor`、`ExternalAppScanner`、`AggressiveOemDetector`、`UpdateScheduleManager`、`PendingInstallNotifier`、`DownloadProgressNotifier` | 无操作实现,`PackageMonitor.canEnumerateInstalledPackages()` 为 false |
 | `DigestVerifier` | 基于 CommonCrypto 的 SHA-256 |
-| `ApkInspector`、`InstallerInfoExtractor` | 无操作实现 |
+| `InstallerInfoExtractor` | 解析 APK 的 `AndroidManifest.xml` 获取包名与版本(见第 6 节),非 APK 返回 null |
+| `ApkInspector` | 无操作实现 |
 | `BrowserHelper`、`ClipboardHelper`、`ShareManager`、`AppLauncher` | `UIApplication.open`、`UIPasteboard`、`UIActivityViewController`;`AppLauncher` 改为导出/分享文件 |
 | `LocalizationManager`、`getSystemLocaleTag`、`getOsVersion`、`getPlatform` | 读取系统 locale 与系统版本 |
 | `createDataStore`、`createAnnouncementsDataStore`、`initDatabase` | DataStore 与 Room 使用 Documents 或 Application Support 目录,Room 使用 bundled SQLite 驱动 |
@@ -82,11 +83,14 @@ KSafe 与 moko-permissions 的 iOS 支持需要在实施计划第一步验证(�
 复用 Apps 页与 `InstalledAppsRepository`,不拆分、不重写 `AppsViewModel`。通过第 5 节的能力开关调整文案与可见入口。
 
 - 下载完成后写入一条 `InstalledApp` 记录(仓库、版本、资源名、文件路径),`installSource` 使用现有的 `THIS_APP`。
-- `packageName` 是数据库主键。iOS 没有真实包名,使用合成键 `ios:<sourceHost 或 github.com>/<owner>/<repo>`;同一仓库发布多个应用时,复用现有 `AssetVariant`/`AssetOwnership` 的指纹追加后缀以区分。实施计划需对照详情页现有的 `packageName` 生成逻辑确认细节。
+- `packageName` 是数据库主键,沿用安卓包名,与安卓一致。安卓通过 `PackageManager` 读取 APK 得到包名,iOS 没有该能力,因此 iOS 的 `InstallerInfoExtractor` 直接解析下载的 APK:按 zip 读取 `AndroidManifest.xml`,解析二进制 XML 得到 `packageName`、`versionName`、`versionCode`。`ApkPackageInfo.appName` 在清单里是资源引用,iOS 不解析 `resources.arsc`,用仓库名代替。`signingFingerprint` 为 null,现有 `checkSigningFingerprint` 在为 null 时按通过处理。
+- 非 APK 文件(`.dmg`、`.exe`、`.deb`、`.zip` 等)没有安卓包名,`InstallerInfoExtractor` 返回 null。此时 iOS 回退到备用标识 `ios:<sourceHost 或 github.com>/<owner>/<repo>`;同一仓库发布多个文件时,复用现有 `AssetVariant`/`AssetOwnership` 的指纹追加后缀以区分。
+- 同一个包名下的不同架构变体(如 arm64 与 x86)与安卓行为一致,按同一条记录处理。
+- 更新时沿用现有的包名一致性校验:新下载文件的包名与已记录的不一致时,与安卓一样提示不匹配。
 - 更新检查:沿用"回到应用时检查,30 分钟冷却"和下拉刷新。有新版本时显示角标,"更新"即下载新版本,新版本下载完成后替换记录并删除旧文件。
 - 保留:忽略更新、跳过某版本、固定变体、过滤规则、按仓库分组、排序、搜索。
 - "打开应用"改为导出/分享该文件。"卸载"改为删除文件并移除记录。
-- 记录对应文件被用户在"文件"App 中手动删除时,页面应显示为文件缺失,允许重新下载,不应崩溃。
+- 记录对应文件被用户在"文件"App 中手动删除时,页面显示"已删除"状态,并允许重新下载,不崩溃。页面每次显示时检查记录对应的文件是否仍然存在。重新下载完成后恢复为正常的已下载状态,版本与更新角标逻辑不变。
 
 ## 7. 下载、保存与分享
 
@@ -110,4 +114,5 @@ KSafe 与 moko-permissions 的 iOS 支持需要在实施计划第一步验证(�
 - Kotlin 2.3.10 与 Xcode 27.0 的兼容性未验证。实施第一步先跑 `:core:domain:compileKotlinIosSimulatorArm64`,失败则暂停并与用户商量。
 - KSafe 2.0.0、moko-permissions 0.20.1、multiplatform-markdown-renderer 0.39.2、Landscapist/coil3、Room 2.8.4 的 iOS 可用性需逐个确认,不可用的以 iosMain 的最小替代实现处理,并在计划中单独列出。
 - Apps 页代码量大,功能开关需要逐处排查入口,遗漏会造成 iOS 上出现无效按钮。阶段 3 需要逐项点击检查。
+- iOS 上解析 APK 清单需要新写一个小型的 zip 读取与二进制 XML 解析器(优先使用项目已间接依赖的 Okio 读取 zip,实施时确认其是否可用)。用真实 APK 样本做单元测试,覆盖正常文件、损坏文件与非 APK 文件。
 - 没有 Apple 开发者账号时只能在模拟器验证,真机运行与分发不在本次范围内。
