@@ -307,7 +307,7 @@ object AssetVariant {
     }
 
     // String.lowercase() can lengthen a name ('İ' becomes two chars), shifting indices into the original.
-    private fun String.lowercasePerChar(): String = String(CharArray(length) { this[it].lowercaseChar() })
+    private fun String.lowercasePerChar(): String = CharArray(length) { this[it].lowercaseChar() }.concatToString()
 
     private val VERSION_SEGMENT =
         Regex("[-_ ]v?\\d+(?:\\.\\d+)+(?=[-_. ]|$)", RegexOption.IGNORE_CASE)

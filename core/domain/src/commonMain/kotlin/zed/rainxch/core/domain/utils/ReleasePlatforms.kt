@@ -28,7 +28,7 @@ fun newestReleasePerPlatform(
 ): List<PlatformRelease> {
     val newest = LinkedHashMap<DiscoveryPlatform, GithubRelease>()
     releases.forEach { release ->
-        releasePlatforms(release).forEach { platform -> newest.putIfAbsent(platform, release) }
+        releasePlatforms(release).forEach { platform -> if (platform !in newest) newest[platform] = release }
     }
     return newest.map { (platform, release) -> PlatformRelease(platform, release) }
         .sortedWith(
