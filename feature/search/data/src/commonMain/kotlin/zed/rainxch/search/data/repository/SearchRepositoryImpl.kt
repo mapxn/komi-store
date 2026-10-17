@@ -461,7 +461,7 @@ class SearchRepositoryImpl(
                     name.endsWith(".dmg") || name.endsWith(".pkg") ||
                     name.endsWith(".appimage") || name.endsWith(".deb") ||
                     name.endsWith(".rpm") || name.endsWith(".pkg.tar.zst") ||
-                    name.endsWith(".ipa")
+                    name.endsWith(".ipa") || name.endsWith(".tipa")
             }
 
             DiscoveryPlatform.Android -> {
@@ -482,7 +482,7 @@ class SearchRepositoryImpl(
             }
 
             DiscoveryPlatform.Ios -> {
-                name.endsWith(".ipa")
+                name.endsWith(".ipa") || name.endsWith(".tipa")
             }
         }
     }
@@ -578,7 +578,7 @@ class SearchRepositoryImpl(
             DiscoveryPlatform.Windows -> "windows"
             DiscoveryPlatform.Macos -> "macos"
             DiscoveryPlatform.Linux -> "linux"
-            DiscoveryPlatform.Ios -> "ios"
+            DiscoveryPlatform.Ios -> null // backend explore has no ios platform
             DiscoveryPlatform.All -> null
         }
 

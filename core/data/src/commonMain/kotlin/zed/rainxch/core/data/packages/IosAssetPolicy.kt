@@ -7,7 +7,7 @@ import zed.rainxch.core.domain.utils.AssetSelector
 import zed.rainxch.core.domain.utils.assetPlatformOf
 
 object IosAssetPolicy {
-    val extensionPriority: List<String> = listOf(".ipa", ".apk")
+    val extensionPriority: List<String> = listOf(".ipa", ".tipa", ".apk")
 
     fun isDownloadable(assetName: String): Boolean =
         when (assetPlatformOf(assetName)) {

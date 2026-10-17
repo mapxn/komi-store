@@ -95,8 +95,10 @@ class SearchViewModel(
         _state
             .onStart {
                 if (!hasLoadedInitialData) {
-                    initialPlatform?.let { platform ->
-                        _state.update { it.copy(selectedSearchPlatform = platform) }
+                    val effectiveInitialPlatform =
+                        initialPlatform ?: if (platform == Platform.IOS) DiscoveryPlatform.Ios else null
+                    effectiveInitialPlatform?.let { selected ->
+                        _state.update { it.copy(selectedSearchPlatform = selected) }
                     }
 
                     observeCurrentUser()

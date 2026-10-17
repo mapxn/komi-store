@@ -248,7 +248,7 @@ class DeveloperProfileRepositoryImpl(
                         Platform.MACOS -> name.endsWith(".dmg") || name.endsWith(".pkg")
                         Platform.LINUX -> name.endsWith(".appimage") || name.endsWith(".deb") ||
                             name.endsWith(".rpm") || name.endsWith(".pkg.tar.zst")
-                        Platform.IOS -> name.endsWith(".ipa") || name.endsWith(".apk")
+                        Platform.IOS -> name.endsWith(".ipa") || name.endsWith(".tipa") || name.endsWith(".apk")
                     }
                 }
                 return ReleaseInfo(
@@ -293,7 +293,7 @@ class DeveloperProfileRepositoryImpl(
                         Platform.MACOS -> name.endsWith(".dmg") || name.endsWith(".pkg")
                         Platform.LINUX -> name.endsWith(".appimage") || name.endsWith(".deb") ||
                             name.endsWith(".rpm") || name.endsWith(".pkg.tar.zst")
-                        Platform.IOS -> name.endsWith(".ipa") || name.endsWith(".apk")
+                        Platform.IOS -> name.endsWith(".ipa") || name.endsWith(".tipa") || name.endsWith(".apk")
                     }
                 }
 

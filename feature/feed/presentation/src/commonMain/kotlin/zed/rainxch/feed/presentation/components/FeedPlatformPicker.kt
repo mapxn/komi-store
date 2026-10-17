@@ -44,13 +44,15 @@ fun FeedPlatformPicker(
         titleJp = stringResource(Res.string.feed_platform_picker_title_jp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            DiscoveryPlatform.entries.forEach { platform ->
-                FeedPlatformRow(
-                    platform = platform,
-                    isSelected = platform == selected,
-                    onClick = { onSelect(platform) },
-                )
-            }
+            DiscoveryPlatform.entries
+                .filter { it != DiscoveryPlatform.Ios }
+                .forEach { platform ->
+                    FeedPlatformRow(
+                        platform = platform,
+                        isSelected = platform == selected,
+                        onClick = { onSelect(platform) },
+                    )
+                }
         }
     }
 }

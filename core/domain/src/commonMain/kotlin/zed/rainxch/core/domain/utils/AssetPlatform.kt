@@ -22,7 +22,7 @@ fun assetPlatformOf(assetName: String): DiscoveryPlatform? {
     return when {
         lower.endsWith(".apk") ->
             if (isAndroidApk(assetName)) DiscoveryPlatform.Android else DiscoveryPlatform.Linux
-        lower.endsWith(".ipa") -> DiscoveryPlatform.Ios
+        lower.endsWith(".ipa") || lower.endsWith(".tipa") -> DiscoveryPlatform.Ios
         lower.endsWith(".exe") || lower.endsWith(".msi") -> DiscoveryPlatform.Windows
         lower.endsWith(".dmg") || lower.endsWith(".pkg") -> DiscoveryPlatform.Macos
         lower.endsWith(".deb") ||

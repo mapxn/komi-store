@@ -63,7 +63,7 @@ class FeedViewModel(
     private var nextPage = 1
     private var hasMore = false
     private var isOffline = false
-    private var selectedPlatform = detectedPlatform()
+    private var selectedPlatform = detectedPlatform().orFeedPlatform()
     private var selectedCategory = FeedCategory.All
 
     private var installedById: Map<Long, List<InstalledApp>> = emptyMap()
@@ -78,7 +78,7 @@ class FeedViewModel(
     val state: StateFlow<FeedState> = _state
         .onStart {
             if (!hasLoadedInitialData) {
-                selectedPlatform = browseFilterStore.platform.value
+                selectedPlatform = browseFilterStore.platform.value.orFeedPlatform()
                 selectedCategory = browseFilterStore.category.value
                 _state.update {
                     it.copy(selectedPlatform = selectedPlatform, selectedCategory = selectedCategory)
@@ -299,9 +299,10 @@ class FeedViewModel(
     private fun observeBrowseFilter() {
         viewModelScope.launch {
             browseFilterStore.platform.collect { p ->
-                if (p != selectedPlatform) {
-                    selectedPlatform = p
-                    _state.update { it.copy(selectedPlatform = p) }
+                val platform = p.orFeedPlatform()
+                if (platform != selectedPlatform) {
+                    selectedPlatform = platform
+                    _state.update { it.copy(selectedPlatform = platform) }
                     _events.send(FeedEvent.OnScrollToTop)
                     reload(isRefresh = false)
                 }
@@ -326,6 +327,9 @@ class FeedViewModel(
         Platform.LINUX -> DiscoveryPlatform.Linux
         Platform.IOS -> DiscoveryPlatform.Ios
     }
+
+    private fun DiscoveryPlatform.orFeedPlatform(): DiscoveryPlatform =
+        if (this == DiscoveryPlatform.Ios) DiscoveryPlatform.All else this
 
     private fun observeInstalledApps() {
         viewModelScope.launch {

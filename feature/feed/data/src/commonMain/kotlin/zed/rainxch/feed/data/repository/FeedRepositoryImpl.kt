@@ -146,7 +146,7 @@ class FeedRepositoryImpl(
         DiscoveryPlatform.Windows -> "windows"
         DiscoveryPlatform.Macos -> "macos"
         DiscoveryPlatform.Linux -> "linux"
-        DiscoveryPlatform.Ios -> "ios"
+        DiscoveryPlatform.Ios -> null // backend feed has no ios platform
         DiscoveryPlatform.All -> null
     }
 

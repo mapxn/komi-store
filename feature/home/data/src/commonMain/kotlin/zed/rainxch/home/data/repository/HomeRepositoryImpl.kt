@@ -653,7 +653,7 @@ class HomeRepositoryImpl(
                         }
 
                         Platform.IOS -> {
-                            name.endsWith(".ipa") || name.endsWith(".apk")
+                            name.endsWith(".ipa") || name.endsWith(".tipa") || name.endsWith(".apk")
                         }
                     }
                 }

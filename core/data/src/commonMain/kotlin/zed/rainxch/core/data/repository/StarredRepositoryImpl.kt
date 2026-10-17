@@ -290,13 +290,13 @@ class StarredRepositoryImpl(
             Platform.MACOS -> name.endsWith(".dmg") || name.endsWith(".pkg")
             Platform.LINUX -> name.endsWith(".appimage") || name.endsWith(".deb") ||
                 name.endsWith(".rpm") || name.endsWith(".pkg.tar.zst")
-            Platform.IOS -> name.endsWith(".ipa") || name.endsWith(".apk")
+            Platform.IOS -> name.endsWith(".ipa") || name.endsWith(".tipa") || name.endsWith(".apk")
         }
     }
 
     private fun matchesAnyPlatform(assetName: String): Boolean {
         val name = assetName.lowercase()
-        return name.endsWith(".ipa") || name.endsWith(".apk") || name.endsWith(".msi") || name.endsWith(".exe") ||
+        return name.endsWith(".ipa") || name.endsWith(".tipa") || name.endsWith(".apk") || name.endsWith(".msi") || name.endsWith(".exe") ||
             name.endsWith(".dmg") || name.endsWith(".pkg") || name.endsWith(".appimage") ||
             name.endsWith(".deb") || name.endsWith(".rpm") || name.endsWith(".pkg.tar.zst")
     }
