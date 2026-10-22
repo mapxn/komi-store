@@ -18,8 +18,7 @@ fun Platform.toDiscoveryPlatform(): DiscoveryPlatform =
         Platform.IOS -> DiscoveryPlatform.Ios
     }
 
-fun GithubRelease.platforms(): Set<DiscoveryPlatform> =
-    assets.mapNotNullTo(LinkedHashSet()) { assetPlatformOf(it.name) }
+fun GithubRelease.platforms(): Set<DiscoveryPlatform> = assets.mapNotNullTo(LinkedHashSet()) { assetPlatformOf(it.name) }
 
 fun newestReleasePerPlatform(
     releases: List<GithubRelease>,
@@ -30,7 +29,8 @@ fun newestReleasePerPlatform(
     releases.forEach { release ->
         releasePlatforms(release).forEach { platform -> if (platform !in newest) newest[platform] = release }
     }
-    return newest.map { (platform, release) -> PlatformRelease(platform, release) }
+    return newest
+        .map { (platform, release) -> PlatformRelease(platform, release) }
         .sortedWith(
             compareBy<PlatformRelease> { it.platform != devicePlatform }
                 .thenBy { DiscoveryPlatform.selectablePlatforms.indexOf(it.platform) },

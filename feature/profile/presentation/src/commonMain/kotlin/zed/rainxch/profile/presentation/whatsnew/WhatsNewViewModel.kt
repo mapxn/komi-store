@@ -2,7 +2,6 @@ package zed.rainxch.profile.presentation.whatsnew
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +14,7 @@ import zed.rainxch.core.domain.model.announcement.WhatsNewEntry
 import zed.rainxch.core.domain.repository.TweaksRepository
 import zed.rainxch.core.domain.repository.WhatsNewLoader
 import zed.rainxch.core.domain.system.AppVersionInfo
+import kotlin.concurrent.Volatile
 
 class WhatsNewViewModel(
     private val tweaksRepository: TweaksRepository,

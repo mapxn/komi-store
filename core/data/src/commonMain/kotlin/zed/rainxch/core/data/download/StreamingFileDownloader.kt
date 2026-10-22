@@ -111,7 +111,10 @@ class StreamingFileDownloader(
                         }.execute { response -> handle(response, partFile, onProgress) }
 
                 when (outcome) {
-                    is Outcome.Done -> return outcome.downloaded to outcome.total
+                    is Outcome.Done -> {
+                        return outcome.downloaded to outcome.total
+                    }
+
                     is Outcome.Redirect -> {
                         hop += 1
                         if (hop > MAX_REDIRECTS) throw IOException("Too many redirects")

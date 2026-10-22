@@ -12,10 +12,12 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.TimeSource
 
 class ProxyTesterImpl : ProxyTester {
-    override suspend fun test(config: ProxyConfig): ProxyTestOutcome =
-        test(config, TEST_URL)
+    override suspend fun test(config: ProxyConfig): ProxyTestOutcome = test(config, TEST_URL)
 
-    override suspend fun test(config: ProxyConfig, url: String): ProxyTestOutcome {
+    override suspend fun test(
+        config: ProxyConfig,
+        url: String,
+    ): ProxyTestOutcome {
         val client =
             createPlatformHttpClient(config).config {
                 install(HttpTimeout) {
@@ -32,14 +34,17 @@ class ProxyTesterImpl : ProxyTester {
             val elapsed = started.elapsedNow().inWholeMilliseconds
 
             when {
-                response.status.value == 407 ->
+                response.status.value == 407 -> {
                     ProxyTestOutcome.Failure.ProxyAuthRequired
+                }
 
-                response.status.value in 200..299 ->
+                response.status.value in 200..299 -> {
                     ProxyTestOutcome.Success(latencyMs = elapsed)
+                }
 
-                else ->
+                else -> {
                     ProxyTestOutcome.Failure.UnexpectedResponse(response.status.value)
+                }
             }
         } catch (e: CancellationException) {
             throw e
@@ -58,15 +63,21 @@ class ProxyTesterImpl : ProxyTester {
 
 internal fun classifyProxyFailure(error: Exception): ProxyTestOutcome.Failure =
     when {
-        error is HttpRequestTimeoutException || error.hasClassNamed("SocketTimeoutException") ->
+        error is HttpRequestTimeoutException || error.hasClassNamed("SocketTimeoutException") -> {
             ProxyTestOutcome.Failure.Timeout
+        }
 
-        error is UnresolvedAddressException || error.hasClassNamed("UnknownHostException") ->
+        error is UnresolvedAddressException || error.hasClassNamed("UnknownHostException") -> {
             ProxyTestOutcome.Failure.DnsFailure
+        }
 
-        error.hasClassNamed("ConnectException") -> ProxyTestOutcome.Failure.ProxyUnreachable
+        error.hasClassNamed("ConnectException") -> {
+            ProxyTestOutcome.Failure.ProxyUnreachable
+        }
 
-        else -> ProxyTestOutcome.Failure.Unknown(error.message)
+        else -> {
+            ProxyTestOutcome.Failure.Unknown(error.message)
+        }
     }
 
 private fun Throwable.hasClassNamed(name: String): Boolean =

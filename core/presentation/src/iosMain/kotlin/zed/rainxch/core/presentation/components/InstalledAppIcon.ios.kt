@@ -13,6 +13,7 @@ actual fun InstalledAppIcon(
     appName: String,
     modifier: Modifier,
     apkFilePath: String?,
+    avatarFallbackUrl: String?,
 ) {
     Image(
         painter = painterResource(Res.drawable.app_icon),

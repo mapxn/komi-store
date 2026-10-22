@@ -10,6 +10,5 @@ import zed.rainxch.core.domain.system.InstallerInfoExtractor
 class IosInstallerInfoExtractor(
     private val reader: PackageArchiveReader = PackageArchiveReader(),
 ) : InstallerInfoExtractor {
-    override suspend fun extractPackageInfo(filePath: String): ApkPackageInfo? =
-        withContext(Dispatchers.IO) { reader.read(filePath) }
+    override suspend fun extractPackageInfo(filePath: String): ApkPackageInfo? = withContext(Dispatchers.IO) { reader.read(filePath) }
 }
