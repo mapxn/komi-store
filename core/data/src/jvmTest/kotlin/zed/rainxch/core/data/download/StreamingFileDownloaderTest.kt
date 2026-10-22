@@ -125,11 +125,12 @@ class StreamingFileDownloaderTest {
         runBlocking {
             val seen = mutableListOf<Triple<String, String?, String?>>()
             downloader(token = "secret") { request ->
-                seen += Triple(
-                    request.url.toString(),
-                    request.headers[HttpHeaders.Authorization],
-                    request.headers[HttpHeaders.Accept],
-                )
+                seen +=
+                    Triple(
+                        request.url.toString(),
+                        request.headers[HttpHeaders.Authorization],
+                        request.headers[HttpHeaders.Accept],
+                    )
                 if (request.url.host == "api.github.com") {
                     respond(
                         ByteArray(0),

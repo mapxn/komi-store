@@ -4,8 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
-import zed.rainxch.core.domain.utils.encodeUrlComponent
-import zed.rainxch.core.domain.utils.padStartZero
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -25,17 +23,21 @@ import org.jetbrains.compose.resources.getString
 import zed.rainxch.auth.domain.repository.AuthPath
 import zed.rainxch.auth.domain.repository.AuthenticationRepository
 import zed.rainxch.auth.domain.repository.DevicePollResult
-import zed.rainxch.auth.domain.repository.PatRejectedException
-import zed.rainxch.auth.domain.repository.RejectedKind
+import zed.rainxch.auth.presentation.mapper.toAuthError
+import zed.rainxch.auth.presentation.mapper.toPatError
 import zed.rainxch.auth.presentation.mapper.toUi
+import zed.rainxch.auth.presentation.model.AuthError
 import zed.rainxch.auth.presentation.model.AuthLoginState
 import zed.rainxch.auth.presentation.model.GithubDeviceStartUi
-import zed.rainxch.core.domain.logging.KomiStoreLogger
+import zed.rainxch.auth.presentation.model.PatError
 import zed.rainxch.core.domain.helpers.BrowserHelper
 import zed.rainxch.core.domain.helpers.ClipboardHelper
+import zed.rainxch.core.domain.logging.KomiStoreLogger
+import zed.rainxch.core.domain.utils.encodeUrlComponent
+import zed.rainxch.core.domain.utils.padStartZero
 import zed.rainxch.githubstore.core.presentation.res.*
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 
 class AuthenticationViewModel(
     private val authenticationRepository: AuthenticationRepository,
@@ -61,34 +63,35 @@ class AuthenticationViewModel(
     private val _events = Channel<AuthenticationEvents>(capacity = Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    val state = _state
-        .onStart {
-            if (!hasLoadedInitialData) {
-                scope.launch {
-                    authenticationRepository.accessTokenFlow.collect { token ->
-                        _state.update {
-                            it.copy(
-                                loginState =
-                                    if (token.isNullOrEmpty()) {
-                                        AuthLoginState.LoggedOut
-                                    } else {
-                                        _events.trySend(AuthenticationEvents.OnNavigateToMain)
-                                        AuthLoginState.LoggedIn
-                                    },
-                            )
+    val state =
+        _state
+            .onStart {
+                if (!hasLoadedInitialData) {
+                    scope.launch {
+                        authenticationRepository.accessTokenFlow.collect { token ->
+                            _state.update {
+                                it.copy(
+                                    loginState =
+                                        if (token.isNullOrEmpty()) {
+                                            AuthLoginState.LoggedOut
+                                        } else {
+                                            _events.trySend(AuthenticationEvents.OnNavigateToMain)
+                                            AuthLoginState.LoggedIn
+                                        },
+                                )
+                            }
                         }
                     }
-                }
 
-                restoreFromSavedState()
-                observeAuthDeepLinks()
-                hasLoadedInitialData = true
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = AuthenticationState(),
-        )
+                    restoreFromSavedState()
+                    observeAuthDeepLinks()
+                    hasLoadedInitialData = true
+                }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = AuthenticationState(),
+            )
 
     fun onAction(action: AuthenticationAction) {
         when (action) {
@@ -143,7 +146,6 @@ class AuthenticationViewModel(
             }
 
             AuthenticationAction.DismissPatSheet -> {
-
                 patSubmissionJob?.cancel()
                 patSubmissionJob = null
                 _state.update {
@@ -158,7 +160,6 @@ class AuthenticationViewModel(
 
             is AuthenticationAction.OnPatInputChanged -> {
                 _state.update {
-
                     it.copy(patInput = action.input, patError = null)
                 }
             }
@@ -197,58 +198,40 @@ class AuthenticationViewModel(
         if (_state.value.isPatSubmitting) return
         val input = _state.value.patInput.trim()
         if (input.isEmpty()) {
-            viewModelScope.launch {
-                _state.update {
-                    it.copy(patError = getString(Res.string.pat_error_empty))
-                }
-            }
+            _state.update { it.copy(patError = PatError.Empty) }
             return
         }
 
         patSubmissionJob?.cancel()
-        patSubmissionJob = viewModelScope.launch {
-            _state.update { it.copy(isPatSubmitting = true, patError = null) }
-            val result = authenticationRepository.signInWithPat(input)
-            result
-                .onSuccess {
-                    _state.update {
-                        it.copy(
-                            isPatSheetVisible = false,
-                            patInput = "",
-                            patError = null,
-                            isPatSubmitting = false,
-                            loginState = AuthLoginState.LoggedIn,
-                        )
-                    }
-                    _events.trySend(AuthenticationEvents.OnNavigateToMain)
-                }
-                .onFailure { t ->
-                    logger.debug("PAT sign-in failed: ${t.message}")
-                    val message = when (t) {
-                        is IllegalArgumentException -> getString(Res.string.pat_error_invalid_format)
-                        is PatRejectedException -> when (t.kind) {
-                            is RejectedKind.BadCredentials ->
-                                getString(Res.string.pat_error_bad_credentials)
-
-                            is RejectedKind.InsufficientScope ->
-                                getString(Res.string.pat_error_insufficient_scope)
-
-                            is RejectedKind.Other ->
-                                getString(Res.string.pat_error_generic)
+        patSubmissionJob =
+            viewModelScope
+                .launch {
+                    _state.update { it.copy(isPatSubmitting = true, patError = null) }
+                    val result = authenticationRepository.signInWithPat(input)
+                    result
+                        .onSuccess {
+                            _state.update {
+                                it.copy(
+                                    isPatSheetVisible = false,
+                                    patInput = "",
+                                    patError = null,
+                                    isPatSubmitting = false,
+                                    loginState = AuthLoginState.LoggedIn,
+                                )
+                            }
+                            _events.trySend(AuthenticationEvents.OnNavigateToMain)
+                        }.onFailure { t ->
+                            logger.debug("PAT sign-in failed: ${t.message}")
+                            _state.update {
+                                it.copy(
+                                    isPatSubmitting = false,
+                                    patError = t.toPatError(),
+                                )
+                            }
                         }
-
-                        else -> getString(Res.string.pat_error_generic)
-                    }
-                    _state.update {
-                        it.copy(
-                            isPatSubmitting = false,
-                            patError = message,
-                        )
-                    }
+                }.also { job ->
+                    job.invokeOnCompletion { patSubmissionJob = null }
                 }
-        }.also { job ->
-            job.invokeOnCompletion { patSubmissionJob = null }
-        }
     }
 
     private fun observeAuthDeepLinks() {
@@ -287,47 +270,36 @@ class AuthenticationViewModel(
                         logger.warn("Failed to open auth URL: $error")
                         webAuthWatchdogJob?.cancel()
                         savedStateHandle.remove<String>(KEY_WEB_AUTH_STATE)
-                        viewModelScope.launch {
-                            val (message, hint) =
-                                categorizeError(IllegalStateException(error))
-                            _state.update {
-                                it.copy(
-                                    isWebAuthInFlight = false,
-                                    loginState =
-                                        AuthLoginState.Error(
-                                            message = message,
-                                            recoveryHint = hint,
-                                        ),
-                                )
-                            }
+                        _state.update {
+                            it.copy(
+                                isWebAuthInFlight = false,
+                                loginState = AuthLoginState.Error(AuthError.BrowserUnavailable),
+                            )
                         }
                     }
                     _state.update { it.copy(isWebAuthInFlight = false) }
                     startWebAuthWatchdog()
-                }
-                .onFailure { error ->
+                }.onFailure { error ->
                     val rootClass = error::class.simpleName ?: "Throwable"
                     val rootMsg = error.message ?: "<no message>"
                     logger.error(
                         "registerWebAuth failed. class=$rootClass msg=$rootMsg",
                         error,
                     )
-                    val (message, hint) = categorizeError(error)
                     _state.update {
                         it.copy(
                             isWebAuthInFlight = false,
-                            loginState =
-                                AuthLoginState.Error(
-                                    message = message,
-                                    recoveryHint = hint,
-                                ),
+                            loginState = AuthLoginState.Error(error.toAuthError()),
                         )
                     }
                 }
         }
     }
 
-    private fun consumeAuthHandoff(handoffId: String, state: String) {
+    private fun consumeAuthHandoff(
+        handoffId: String,
+        state: String,
+    ) {
         val expected = savedStateHandle.get<String>(KEY_WEB_AUTH_STATE)
 
         if (expected == null) {
@@ -338,17 +310,7 @@ class AuthenticationViewModel(
             logger.warn(
                 "Web-auth handoff state mismatch. expected=${expected.take(8)} got=${state.take(8)}",
             )
-            viewModelScope.launch {
-                _state.update {
-                    it.copy(
-                        loginState =
-                            AuthLoginState.Error(
-                                message = getString(Res.string.error_unknown),
-                                recoveryHint = getString(Res.string.auth_hint_try_again),
-                            ),
-                    )
-                }
-            }
+            _state.update { it.copy(loginState = AuthLoginState.Error(AuthError.Unknown)) }
             return
         }
         webAuthWatchdogJob?.cancel()
@@ -371,30 +333,27 @@ class AuthenticationViewModel(
                         )
                     }
                     _events.trySend(AuthenticationEvents.OnNavigateToMain)
-                }
-                .onFailure { error ->
+                }.onFailure { error ->
                     val rootClass = error::class.simpleName ?: "Throwable"
                     val rootMsg = error.message ?: "<no message>"
                     logger.error(
                         "exchangeWebAuthHandoff failed. class=$rootClass msg=$rootMsg",
                         error,
                     )
-                    val (message, hint) = categorizeError(error)
                     _state.update {
                         it.copy(
                             isWebAuthInFlight = false,
-                            loginState =
-                                AuthLoginState.Error(
-                                    message = message,
-                                    recoveryHint = hint,
-                                ),
+                            loginState = AuthLoginState.Error(error.toAuthError()),
                         )
                     }
                 }
         }
     }
 
-    private fun consumeAuthError(reason: String, state: String) {
+    private fun consumeAuthError(
+        reason: String,
+        state: String,
+    ) {
         val expected = savedStateHandle.get<String>(KEY_WEB_AUTH_STATE)
         if (expected == null) {
             logger.debug("Ignoring web-auth error with no pending session")
@@ -403,44 +362,37 @@ class AuthenticationViewModel(
         if (expected != state) {
             logger.warn(
                 "Web-auth error state mismatch (ignored). " +
-                        "expected=${expected.take(8)} got=${state.take(8)}",
+                    "expected=${expected.take(8)} got=${state.take(8)}",
             )
             return
         }
         webAuthWatchdogJob?.cancel()
         savedStateHandle.remove<String>(KEY_WEB_AUTH_STATE)
         logger.warn("Web-auth flow returned error: $reason")
-        viewModelScope.launch {
-            _state.update {
-                it.copy(
-                    isWebAuthInFlight = false,
-                    loginState = AuthLoginState.Error(
-                        message = getString(Res.string.error_unknown),
-                        recoveryHint = getString(Res.string.auth_hint_try_again),
-                    ),
-                )
-            }
+        _state.update {
+            it.copy(
+                isWebAuthInFlight = false,
+                loginState = AuthLoginState.Error(AuthError.Unknown),
+            )
         }
     }
 
     private fun startWebAuthWatchdog() {
         webAuthWatchdogJob?.cancel()
-        webAuthWatchdogJob = viewModelScope.launch {
-            delay(WEB_AUTH_TIMEOUT_MS.milliseconds)
-            if (savedStateHandle.get<String>(KEY_WEB_AUTH_STATE) == null) return@launch
-            if (_state.value.loginState !is AuthLoginState.Pending) return@launch
-            savedStateHandle.remove<String>(KEY_WEB_AUTH_STATE)
-            logger.warn("Web-auth timed out waiting for callback")
-            _state.update {
-                it.copy(
-                    isWebAuthInFlight = false,
-                    loginState = AuthLoginState.Error(
-                        message = getString(Res.string.error_unknown),
-                        recoveryHint = getString(Res.string.auth_hint_try_again),
-                    ),
-                )
+        webAuthWatchdogJob =
+            viewModelScope.launch {
+                delay(WEB_AUTH_TIMEOUT_MS.milliseconds)
+                if (savedStateHandle.get<String>(KEY_WEB_AUTH_STATE) == null) return@launch
+                if (_state.value.loginState !is AuthLoginState.Pending) return@launch
+                savedStateHandle.remove<String>(KEY_WEB_AUTH_STATE)
+                logger.warn("Web-auth timed out waiting for callback")
+                _state.update {
+                    it.copy(
+                        isWebAuthInFlight = false,
+                        loginState = AuthLoginState.Error(AuthError.Unknown),
+                    )
+                }
             }
-        }
     }
 
     private fun openPatSettingsPage() {
@@ -473,34 +425,28 @@ class AuthenticationViewModel(
 
     private fun startCountdown(remainingSeconds: Int) {
         countdownJob?.cancel()
-        countdownJob = viewModelScope.launch {
-            var remaining = remainingSeconds
-            while (remaining > 0) {
-                _state.update { currentState ->
-                    val loginState = currentState.loginState
-                    if (loginState is AuthLoginState.DevicePrompt) {
-                        currentState.copy(
-                            loginState = devicePrompt(loginState.start, remaining),
-                        )
-                    } else {
-                        return@launch
+        countdownJob =
+            viewModelScope.launch {
+                var remaining = remainingSeconds
+                while (remaining > 0) {
+                    _state.update { currentState ->
+                        val loginState = currentState.loginState
+                        if (loginState is AuthLoginState.DevicePrompt) {
+                            currentState.copy(
+                                loginState = devicePrompt(loginState.start, remaining),
+                            )
+                        } else {
+                            return@launch
+                        }
                     }
+                    delay(1000L.milliseconds)
+                    remaining--
                 }
-                delay(1000L.milliseconds)
-                remaining--
-            }
 
-            pollingJob?.cancel()
-            clearSavedState()
-            _state.update {
-                it.copy(
-                    loginState = AuthLoginState.Error(
-                        message = getString(Res.string.auth_error_code_expired),
-                        recoveryHint = getString(Res.string.auth_hint_try_again),
-                    ),
-                )
+                pollingJob?.cancel()
+                clearSavedState()
+                _state.update { it.copy(loginState = AuthLoginState.Error(AuthError.CodeExpired)) }
             }
-        }
     }
 
     private fun tryPollIfReady() {
@@ -535,9 +481,10 @@ class AuthenticationViewModel(
     private fun startLogin() {
         viewModelScope.launch {
             try {
-                val flowStart = withContext(Dispatchers.IO) {
-                    authenticationRepository.startDeviceFlow()
-                }
+                val flowStart =
+                    withContext(Dispatchers.IO) {
+                        authenticationRepository.startDeviceFlow()
+                    }
 
                 val start = flowStart.start
                 authPath = flowStart.path
@@ -582,23 +529,17 @@ class AuthenticationViewModel(
                     "startDeviceFlow failed. topClass=${t::class.simpleName} topMsg=${t.message} | rootClass=$rootClass rootMsg=$rootMsg",
                     t,
                 )
-                val (message, hint) = categorizeError(t)
                 withContext(Dispatchers.Main.immediate) {
-                    _state.update {
-                        it.copy(
-                            loginState =
-                                AuthLoginState.Error(
-                                    message = message,
-                                    recoveryHint = hint,
-                                ),
-                        )
-                    }
+                    _state.update { it.copy(loginState = AuthLoginState.Error(t.toAuthError())) }
                 }
             }
         }
     }
 
-    private fun startPolling(deviceCode: String, resetInterval: Boolean = true) {
+    private fun startPolling(
+        deviceCode: String,
+        resetInterval: Boolean = true,
+    ) {
         pollingJob?.cancel()
         if (resetInterval) {
             val loginState = _state.value.loginState
@@ -608,16 +549,16 @@ class AuthenticationViewModel(
 
             pollingIntervalMs = (intervalSec * 1000).toLong() + 1000L
         }
-        pollingJob = viewModelScope.launch {
-            while (isActive) {
-                delay(pollingIntervalMs.milliseconds)
-                doPoll(deviceCode)
+        pollingJob =
+            viewModelScope.launch {
+                while (isActive) {
+                    delay(pollingIntervalMs.milliseconds)
+                    doPoll(deviceCode)
+                }
             }
-        }
     }
 
     private fun pollOnce(deviceCode: String) {
-
         lastPollStartedAtMs = Clock.System.now().toEpochMilliseconds()
         viewModelScope.launch {
             doPoll(deviceCode)
@@ -635,7 +576,6 @@ class AuthenticationViewModel(
                 }
 
             if (outcome.path != authPath) {
-
                 val isLegalEscalation =
                     authPath == AuthPath.Backend && outcome.path == AuthPath.Direct
                 if (isLegalEscalation) {
@@ -667,7 +607,6 @@ class AuthenticationViewModel(
                 }
 
                 is DevicePollResult.SlowDown -> {
-
                     val bumped = (pollingIntervalMs + 5000L).coerceAtMost(MAX_POLL_INTERVAL_MS)
                     val clamped =
                         bumped == MAX_POLL_INTERVAL_MS && pollingIntervalMs >= MAX_POLL_INTERVAL_MS
@@ -685,7 +624,6 @@ class AuthenticationViewModel(
                             pollIntervalSec = (pollingIntervalMs / 1000).toInt(),
                         )
                     }
-
                 }
 
                 is DevicePollResult.Failed -> {
@@ -693,11 +631,9 @@ class AuthenticationViewModel(
                     pollingJob?.cancel()
                     countdownJob?.cancel()
                     clearSavedState()
-                    val (message, hint) = categorizeError(result.error)
                     _state.update {
                         it.copy(
-                            loginState =
-                                AuthLoginState.Error(message = message, recoveryHint = hint),
+                            loginState = AuthLoginState.Error(result.error.toAuthError()),
                             isPolling = false,
                         )
                     }
@@ -775,32 +711,6 @@ class AuthenticationViewModel(
         pollOnce(deviceCode)
     }
 
-    private suspend fun categorizeError(t: Throwable): Pair<String, String?> {
-        val msg = t.message ?: return getString(Res.string.error_unknown) to null
-        val lowerMsg = msg.lowercase()
-        return when {
-            "timeout" in lowerMsg || "timed out" in lowerMsg -> {
-                msg to getString(Res.string.auth_hint_check_connection)
-            }
-
-            "network" in lowerMsg || "unresolvedaddress" in lowerMsg || "connect" in lowerMsg -> {
-                msg to getString(Res.string.auth_hint_check_connection)
-            }
-
-            "expired" in lowerMsg || "expire" in lowerMsg -> {
-                msg to getString(Res.string.auth_hint_try_again)
-            }
-
-            "denied" in lowerMsg || "access_denied" in lowerMsg -> {
-                msg to getString(Res.string.auth_hint_denied)
-            }
-
-            else -> {
-                msg to null
-            }
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
         countdownJob?.cancel()
@@ -810,8 +720,9 @@ class AuthenticationViewModel(
     private fun openGitHub(start: GithubDeviceStartUi) {
         viewModelScope.launch(Dispatchers.Main.immediate) {
             try {
-                val url = start.verificationUriComplete
-                    ?: buildPrefilledUrl(start.verificationUri, start.userCode)
+                val url =
+                    start.verificationUriComplete
+                        ?: buildPrefilledUrl(start.verificationUri, start.userCode)
                 browserHelper.openUrl(url)
             } catch (e: CancellationException) {
                 throw e
@@ -821,7 +732,10 @@ class AuthenticationViewModel(
         }
     }
 
-    private fun buildPrefilledUrl(verificationUri: String, userCode: String): String {
+    private fun buildPrefilledUrl(
+        verificationUri: String,
+        userCode: String,
+    ): String {
         val separator = if ('?' in verificationUri) "&" else "?"
         return verificationUri + separator + "user_code=" + encodeUrlComponent(userCode)
     }

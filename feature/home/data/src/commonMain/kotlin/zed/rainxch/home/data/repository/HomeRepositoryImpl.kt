@@ -29,16 +29,16 @@ import zed.rainxch.core.data.cache.CacheManager.CacheTtl.HOME_REPOS
 import zed.rainxch.core.data.dto.GithubRepoNetworkModel
 import zed.rainxch.core.data.dto.GithubRepoSearchResponse
 import zed.rainxch.core.data.dto.RepoByIdNetwork
-import zed.rainxch.core.domain.model.account.github.GithubUser
 import zed.rainxch.core.data.mappers.toSummary
 import zed.rainxch.core.data.network.GitHubClientProvider
 import zed.rainxch.core.data.network.executeRequest
 import zed.rainxch.core.domain.logging.KomiStoreLogger
-import zed.rainxch.core.domain.model.repository.DiscoveryPlatform
 import zed.rainxch.core.domain.model.account.github.GithubRepoSummary
+import zed.rainxch.core.domain.model.account.github.GithubUser
+import zed.rainxch.core.domain.model.error.RateLimitException
+import zed.rainxch.core.domain.model.repository.DiscoveryPlatform
 import zed.rainxch.core.domain.model.repository.PaginatedDiscoveryRepositories
 import zed.rainxch.core.domain.model.system.Platform
-import zed.rainxch.core.domain.model.error.RateLimitException
 import zed.rainxch.home.data.data_source.CachedRepositoriesDataSource
 import zed.rainxch.home.data.dto.CachedRepoResponse
 import zed.rainxch.home.data.mappers.toGithubRepoSummary
@@ -78,9 +78,15 @@ class HomeRepositoryImpl(
     ): CachedRepoResponse? {
         val effective = platforms.normalize()
         return when (effective.size) {
-            0 -> fetchSingle(DiscoveryPlatform.All)
-            1 -> fetchSingle(effective.first())
-            else ->
+            0 -> {
+                fetchSingle(DiscoveryPlatform.All)
+            }
+
+            1 -> {
+                fetchSingle(effective.first())
+            }
+
+            else -> {
                 fetchSingle(DiscoveryPlatform.All)?.let { response ->
                     response.copy(
                         repositories =
@@ -89,6 +95,7 @@ class HomeRepositoryImpl(
                             },
                     )
                 }
+            }
         }
     }
 
@@ -101,9 +108,10 @@ class HomeRepositoryImpl(
             if (page == 1) {
                 logger.debug("Attempting to load cached trending repositories...")
 
-                val cachedData = loadCachedReposForSet(platforms) {
-                    cachedDataSource.getCachedTrendingRepos(it)
-                }
+                val cachedData =
+                    loadCachedReposForSet(platforms) {
+                        cachedDataSource.getCachedTrendingRepos(it)
+                    }
 
                 if (cachedData != null && cachedData.repositories.isNotEmpty()) {
                     logger.debug("Using mirror cached data: ${cachedData.repositories.size} repos")
@@ -175,9 +183,10 @@ class HomeRepositoryImpl(
             if (page == 1) {
                 logger.debug("Attempting to load cached hot release repositories...")
 
-                val cachedData = loadCachedReposForSet(platforms) {
-                    cachedDataSource.getCachedHotReleaseRepos(it)
-                }
+                val cachedData =
+                    loadCachedReposForSet(platforms) {
+                        cachedDataSource.getCachedHotReleaseRepos(it)
+                    }
 
                 if (cachedData != null && cachedData.repositories.isNotEmpty()) {
                     logger.debug("Using mirror cached data: ${cachedData.repositories.size} repos")
@@ -249,9 +258,10 @@ class HomeRepositoryImpl(
             if (page == 1) {
                 logger.debug("Attempting to load cached most popular repositories...")
 
-                val cachedData = loadCachedReposForSet(platforms) {
-                    cachedDataSource.getCachedMostPopularRepos(it)
-                }
+                val cachedData =
+                    loadCachedReposForSet(platforms) {
+                        cachedDataSource.getCachedMostPopularRepos(it)
+                    }
 
                 if (cachedData != null && cachedData.repositories.isNotEmpty()) {
                     logger.debug("Using mirror cached data: ${cachedData.repositories.size} repos")
@@ -317,9 +327,10 @@ class HomeRepositoryImpl(
         platforms: Set<DiscoveryPlatform>,
     ): Flow<PaginatedDiscoveryRepositories> =
         flow {
-            val cachedData = loadCachedReposForSet(platforms) {
-                cachedDataSource.getCachedTopicRepos(topic, it)
-            }
+            val cachedData =
+                loadCachedReposForSet(platforms) {
+                    cachedDataSource.getCachedTopicRepos(topic, it)
+                }
 
             if (cachedData != null && cachedData.repositories.isNotEmpty()) {
                 logger.debug("Using cached topic data for ${topic.name}: ${cachedData.repositories.size} repos")
@@ -546,7 +557,6 @@ class HomeRepositoryImpl(
         return when {
             topics.isEmpty() -> baseQuery
             topics.size == 1 -> "$baseQuery topic:${topics.first()}"
-
             else -> topics.joinToString(separator = " OR ") { "($baseQuery topic:$it)" }
         }
     }
@@ -687,13 +697,14 @@ class HomeRepositoryImpl(
         val cacheKey = "home:repo_id:$id"
         cacheManager.get<GithubRepoSummary>(cacheKey)?.let { return it }
         return try {
-            val result = httpClient
-                .executeRequest<RepoByIdNetwork> {
-                    get("/repositories/$id") {
-                        header("Accept", "application/vnd.github+json")
-                    }
-                }.getOrThrow()
-                .toSummary()
+            val result =
+                httpClient
+                    .executeRequest<RepoByIdNetwork> {
+                        get("/repositories/$id") {
+                            header("Accept", "application/vnd.github+json")
+                        }
+                    }.getOrThrow()
+                    .toSummary()
             cacheManager.put(cacheKey, result, HOME_REPOS)
             result
         } catch (e: CancellationException) {
@@ -705,24 +716,26 @@ class HomeRepositoryImpl(
         }
     }
 
-    private fun RepoByIdNetwork.toSummary(): GithubRepoSummary = GithubRepoSummary(
-        id = id,
-        name = name,
-        fullName = fullName,
-        owner = GithubUser(
-            id = owner.id,
-            login = owner.login,
-            avatarUrl = owner.avatarUrl,
-            htmlUrl = owner.htmlUrl,
-        ),
-        description = description,
-        defaultBranch = defaultBranch,
-        htmlUrl = htmlUrl,
-        stargazersCount = stars,
-        forksCount = forks,
-        language = language,
-        topics = topics.orEmpty(),
-        releasesUrl = "https://api.github.com/repos/$fullName/releases{/id}",
-        updatedAt = updatedAt,
-    )
+    private fun RepoByIdNetwork.toSummary(): GithubRepoSummary =
+        GithubRepoSummary(
+            id = id,
+            name = name,
+            fullName = fullName,
+            owner =
+                GithubUser(
+                    id = owner.id,
+                    login = owner.login,
+                    avatarUrl = owner.avatarUrl,
+                    htmlUrl = owner.htmlUrl,
+                ),
+            description = description,
+            defaultBranch = defaultBranch,
+            htmlUrl = htmlUrl,
+            stargazersCount = stars,
+            forksCount = forks,
+            language = language,
+            topics = topics.orEmpty(),
+            releasesUrl = "https://api.github.com/repos/$fullName/releases{/id}",
+            updatedAt = updatedAt,
+        )
 }

@@ -9,5 +9,4 @@ actual fun getPlatform(): Platform = Platform.IOS
 
 actual fun getOsVersion(): String = "iOS ${UIDevice.currentDevice.systemVersion}"
 
-actual fun getSystemLocaleTag(): String =
-    (NSLocale.preferredLanguages.firstOrNull() as? String)?.takeIf { it.isNotBlank() } ?: "und"
+actual fun getSystemLocaleTag(): String = (NSLocale.preferredLanguages.firstOrNull() as? String)?.takeIf { it.isNotBlank() } ?: "und"

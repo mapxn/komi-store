@@ -31,6 +31,9 @@ import zed.rainxch.githubstore.core.presentation.res.feed_platform_all
 import zed.rainxch.githubstore.core.presentation.res.feed_platform_picker_title
 import zed.rainxch.githubstore.core.presentation.res.feed_platform_picker_title_jp
 
+// The backend feed has no iOS data and rejects platform=ios.
+private val FeedPlatforms = DiscoveryPlatform.entries - DiscoveryPlatform.Ios
+
 @Composable
 fun FeedPlatformPicker(
     selected: DiscoveryPlatform,
@@ -44,15 +47,13 @@ fun FeedPlatformPicker(
         titleJp = stringResource(Res.string.feed_platform_picker_title_jp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            DiscoveryPlatform.entries
-                .filter { it != DiscoveryPlatform.Ios }
-                .forEach { platform ->
-                    FeedPlatformRow(
-                        platform = platform,
-                        isSelected = platform == selected,
-                        onClick = { onSelect(platform) },
-                    )
-                }
+            FeedPlatforms.forEach { platform ->
+                FeedPlatformRow(
+                    platform = platform,
+                    isSelected = platform == selected,
+                    onClick = { onSelect(platform) },
+                )
+            }
         }
     }
 }

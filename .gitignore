@@ -48,3 +48,6 @@ roadmap/
 xcuserdata/
 DerivedData/
 *.xcworkspace/xcuserdata/
+.claude/settings.local.json
+.claude/worktrees/
+.gradle-local/

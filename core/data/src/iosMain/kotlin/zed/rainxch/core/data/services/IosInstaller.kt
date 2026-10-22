@@ -9,10 +9,10 @@ import zed.rainxch.core.data.packages.IosAssetPolicy
 import zed.rainxch.core.domain.logging.KomiStoreLogger
 import zed.rainxch.core.domain.model.account.github.GithubAsset
 import zed.rainxch.core.domain.model.system.SystemArchitecture
-import zed.rainxch.core.domain.utils.AssetFileName
 import zed.rainxch.core.domain.system.InstallOutcome
 import zed.rainxch.core.domain.system.Installer
 import zed.rainxch.core.domain.system.InstallerInfoExtractor
+import zed.rainxch.core.domain.utils.AssetFileName
 import kotlin.coroutines.cancellation.CancellationException
 
 class IosInstaller(

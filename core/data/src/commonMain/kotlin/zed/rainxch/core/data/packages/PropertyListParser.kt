@@ -51,9 +51,13 @@ internal object PropertyListParser {
                     if (depth == 0) break
                 }
 
-                depth != 1 -> pending = null
+                depth != 1 -> {
+                    pending = null
+                }
 
-                name == "key" && !isClose && !isSelf -> pending = null
+                name == "key" && !isClose && !isSelf -> {
+                    pending = null
+                }
 
                 name == "key" && isClose -> {
                     key = pending?.toString()?.trim()
@@ -64,17 +68,26 @@ internal object PropertyListParser {
                     val currentKey = key
                     if (currentKey != null) {
                         when {
-                            name == "string" && isSelf -> result[currentKey] = ""
-                            name == "string" -> result[currentKey] = unescape(pending?.toString().orEmpty())
-                            (name == "integer" || name == "real") && !isSelf ->
+                            name == "string" && isSelf -> {
+                                result[currentKey] = ""
+                            }
+
+                            name == "string" -> {
+                                result[currentKey] = unescape(pending?.toString().orEmpty())
+                            }
+
+                            (name == "integer" || name == "real") && !isSelf -> {
                                 result[currentKey] = pending?.toString().orEmpty().trim()
+                            }
                         }
                     }
                     key = null
                     pending = null
                 }
 
-                else -> pending = null
+                else -> {
+                    pending = null
+                }
             }
         }
         return result
@@ -131,12 +144,13 @@ internal object PropertyListParser {
             val offset = objectOffset(index)
             val marker = u8(offset)
             return when (marker shr 4) {
-                0x0 ->
+                0x0 -> {
                     when (marker) {
                         0x08 -> false
                         0x09 -> true
                         else -> null
                     }
+                }
 
                 0x1 -> {
                     val size = 1 shl (marker and 0x0F)
@@ -156,7 +170,9 @@ internal object PropertyListParser {
                         .concatToString()
                 }
 
-                else -> null
+                else -> {
+                    null
+                }
             }
         }
 

@@ -23,4 +23,12 @@ class OkioDigestVerifier(
                     .getOrElse { return@withContext "Digest computation failed: ${it.message}" }
             if (actual == expected) null else "Digest mismatch (expected $expected, got $actual)"
         }
+
+    override suspend fun computeSha256(filePath: String): String? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (!fileSystem.exists(filePath.toPath())) return@runCatching null
+                "sha256:" + FileDigest.sha256Hex(filePath, fileSystem)
+            }.getOrNull()
+        }
 }

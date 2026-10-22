@@ -43,7 +43,10 @@ internal object AndroidManifestParser {
             if (size < 8 || size > end - position) break
 
             when (type) {
-                RES_STRING_POOL_TYPE -> strings = readStringPool(b, position)
+                RES_STRING_POOL_TYPE -> {
+                    strings = readStringPool(b, position)
+                }
+
                 RES_XML_START_ELEMENT_TYPE -> {
                     val (name, attributes) = readElement(b, position, strings)
                     when (name) {
