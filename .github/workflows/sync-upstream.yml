@@ -1,0 +1,286 @@
+name: Sync upstream
+
+# Keeps this fork in step with the upstream project in two segments.
+#
+# Segment 1: when upstream main is ahead, open an "upstream -> main" PR. The PR is
+# merged automatically only when the fork has no commits of its own on main, so the
+# merge is a plain fast-forward; otherwise it is left open for review. Upstream
+# commits are never rebased or squashed.
+#
+# Segment 2: when main moved, open a "main -> ios-adapter" PR. It is never merged
+# here. The merge probe decides the path: a clean merge gets a compile and test run
+# on the merged tree, a conflicting merge is filed on the team platform (Daniel
+# resolves, Tony reviews, Jim verifies) when the MULTICA_TOKEN secret is present,
+# and flagged on the PR when it is not.
+#
+# Note: branches pushed and PRs opened with GITHUB_TOKEN do not trigger other
+# workflows, so pr-checks does not run on the PRs this workflow opens. That is why
+# segment 2 runs its own compile and test step. Provide a PAT instead of GITHUB_TOKEN
+# if the full pr-checks suite should run on those PRs.
+
+on:
+  schedule:
+    # 03:17 UTC keeps the daily check away from the cron peak and lands in
+    # Pama's daytime; on top of that, workflow_dispatch remains the on-demand path.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream_repo:
+        description: 'Upstream repository (owner/name). Empty uses the fork parent.'
+        required: false
+        default: ''
+        type: string
+      auto_merge_main:
+        description: 'Merge the upstream -> main PR when it is a clean fast-forward.'
+        required: false
+        default: true
+        type: boolean
+      skip_adapter:
+        description: 'Stop after segment 1.'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Report what would happen without pushing, opening PRs or filing issues.'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  MAIN_BRANCH: main
+  ADAPTER_BRANCH: ios-adapter
+  UPSTREAM_REPO: ${{ inputs.upstream_repo }}
+  # When workflow_dispatch passes the false flag or leaves the input off, these
+  # short-circuit expressions fall back to the values that keep the scheduled run
+  # quiet and automatic.
+  AUTO_MERGE_MAIN: ${{ (github.event_name == 'workflow_dispatch' && inputs.auto_merge_main == false) && 'false' || 'true' }}
+  DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && 'true' || 'false' }}
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  sync-main:
+    name: Segment 1, upstream to main
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      upstream_repo: ${{ steps.check.outputs.upstream_repo }}
+      behind: ${{ steps.check.outputs.behind }}
+      ahead: ${{ steps.check.outputs.ahead }}
+      fast_forward: ${{ steps.check.outputs.fast_forward }}
+      latest_release: ${{ steps.check.outputs.latest_release }}
+      main_moved: ${{ steps.sync.outputs.main_moved }}
+      merge_state: ${{ steps.sync.outputs.merge_state }}
+      pr: ${{ steps.sync.outputs.pr }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Compare upstream with main
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/scripts/sync-upstream.sh check
+
+      - name: Open the upstream to main PR
+        id: sync
+        if: steps.check.outputs.behind != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          .github/scripts/sync-upstream.sh sync-main
+
+      - name: Summary
+        if: always()
+        env:
+          BEHIND: ${{ steps.check.outputs.behind }}
+          AHEAD: ${{ steps.check.outputs.ahead }}
+          UPSTREAM: ${{ steps.check.outputs.upstream_repo }}
+          RELEASE: ${{ steps.check.outputs.latest_release }}
+          MERGE_STATE: ${{ steps.sync.outputs.merge_state }}
+          MAIN_MOVED: ${{ steps.sync.outputs.main_moved }}
+          PR: ${{ steps.sync.outputs.pr }}
+        run: |
+          {
+            echo "### Segment 1, upstream to main"
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| upstream | ${UPSTREAM:-unresolved} |"
+            echo "| upstream releases | ${RELEASE:-unknown} |"
+            echo "| commits not in this fork | ${BEHIND:-0} |"
+            echo "| fork-only commits | ${AHEAD:-0} |"
+            echo "| test merge | ${MERGE_STATE:-not run} |"
+            echo "| sync PR | ${PR:+#${PR}}${PR:-none} |"
+            echo "| merged automatically | ${MAIN_MOVED:-false} |"
+            echo "| dry run | ${DRY_RUN:-false} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  merge-adapter:
+    name: Segment 2, main to ios-adapter
+    needs: sync-main
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_adapter) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      moved: ${{ steps.plan.outputs.moved }}
+      clean: ${{ steps.plan.outputs.clean }}
+      pr: ${{ steps.plan.outputs.pr }}
+      handoff: ${{ steps.handoff.outputs.handoff }}
+      handoff_issue: ${{ steps.handoff.outputs.handoff_issue }}
+    env:
+      HAS_MULTICA_TOKEN: ${{ secrets.MULTICA_TOKEN != '' }}
+      MULTICA_TOKEN: ${{ secrets.MULTICA_TOKEN }}
+      MULTICA_SERVER_URL: ${{ vars.MULTICA_SERVER_URL || 'https://api.multica.ai' }}
+      MULTICA_WORKSPACE_ID: ${{ vars.MULTICA_WORKSPACE_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Plan the ios-adapter merge
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The merge-base check below must compare both ref tips. Fetch them
+          # with explicit refspecs so a later shallow or partial checkout can
+          # never make the probe read stale or missing refs.
+          git fetch --no-tags origin \
+            "+refs/heads/${MAIN_BRANCH}:refs/remotes/origin/${MAIN_BRANCH}" \
+            "+refs/heads/${ADAPTER_BRANCH}:refs/remotes/origin/${ADAPTER_BRANCH}"
+          .github/scripts/sync-upstream.sh plan-adapter
+
+      - name: Install the Multica CLI
+        if: steps.plan.outputs.moved == 'true' && steps.plan.outputs.clean == 'false' && env.HAS_MULTICA_TOKEN == 'true'
+        run: |
+          set -euo pipefail
+          version="0.6.5"
+          archive="multica-cli-${version}-linux-amd64.tar.gz"
+          base="https://github.com/multica-ai/multica/releases/download/v${version}"
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive" "$base/$archive"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/checksums.txt" "$base/checksums.txt"
+          expected=$(grep " ${archive}$" "$RUNNER_TEMP/checksums.txt" | awk '{print $1}')
+          actual=$(sha256sum "$RUNNER_TEMP/$archive" | awk '{print $1}')
+          if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+            echo "::error::multica CLI checksum mismatch"
+            exit 1
+          fi
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/bin" multica
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: File the conflict work on the platform
+        id: handoff
+        if: steps.plan.outputs.moved == 'true' && steps.plan.outputs.clean == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.plan.outputs.pr }}
+          # Pass the conflict list through the step output; the RUNNER_TEMP file
+          # the script still writes is only a local dry-run backup.
+          CONFLICTS: ${{ steps.plan.outputs.conflicts }}
+        run: .github/scripts/sync-upstream.sh handoff "$PR_NUMBER"
+
+      - name: Summary
+        if: always()
+        env:
+          MOVED: ${{ steps.plan.outputs.moved }}
+          CLEAN: ${{ steps.plan.outputs.clean }}
+          PR: ${{ steps.plan.outputs.pr }}
+          HANDOFF: ${{ steps.handoff.outputs.handoff }}
+          HANDOFF_ISSUE: ${{ steps.handoff.outputs.handoff_issue }}
+          HAS_TOKEN: ${{ env.HAS_MULTICA_TOKEN }}
+        run: |
+          {
+            echo "### Segment 2, main to ios-adapter"
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| main moved past ios-adapter | ${MOVED:-false} |"
+            echo "| test merge clean | ${CLEAN:-n/a} |"
+            echo "| merge PR | ${PR:+\\#${PR}}${PR:-none} |"
+            echo "| platform handoff | ${HANDOFF:-none} |"
+            echo "| conflict issue | ${HANDOFF_ISSUE:-none} |"
+            echo "| MULTICA_TOKEN present | ${HAS_TOKEN:-false} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  verify-adapter:
+    name: Segment 2 verification
+    needs: merge-adapter
+    if: needs.merge-adapter.outputs.moved == 'true' && needs.merge-adapter.outputs.clean == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+
+      - name: Merge main into ios-adapter locally
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin \
+            "+refs/heads/${ADAPTER_BRANCH}:refs/remotes/origin/${ADAPTER_BRANCH}" \
+            "+refs/heads/${MAIN_BRANCH}:refs/remotes/origin/${MAIN_BRANCH}"
+          git switch --force-create adapter-verify "origin/${ADAPTER_BRANCH}"
+          git merge --no-ff --no-edit "origin/${MAIN_BRANCH}"
+
+      - name: Compile and test the merged tree
+        run: ./gradlew compileKotlinJvm compileDebugKotlinAndroid jvmTest --continue
+
+      - name: Report on the pull request
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ needs.merge-adapter.outputs.pr }}
+          STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          case "${PR:-}" in
+          '' | *[!0-9]*) echo "no pull request number, skipping the report"; exit 0 ;;
+          esac
+          case "$STATUS" in
+          success) verdict="passed" ;;
+          cancelled) verdict="was cancelled" ;;
+          *) verdict="failed" ;;
+          esac
+          body="$RUNNER_TEMP/verify-comment.md"
+          {
+            printf 'Verification on the merged tree %s.\n\n' "$verdict"
+            printf -- '- command: gradle compileKotlinJvm compileDebugKotlinAndroid jvmTest --continue\n'
+            printf -- '- run: %s/%s/actions/runs/%s\n\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf 'This PR is never merged automatically.\n'
+          } > "$body"
+          gh pr comment "$PR" --body-file "$body"
