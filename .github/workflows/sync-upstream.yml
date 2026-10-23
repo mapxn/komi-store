@@ -20,6 +20,8 @@ name: Sync upstream
 
 on:
   schedule:
+    # 03:17 UTC keeps the daily check away from the cron peak and lands in
+    # Pama's daytime; on top of that, workflow_dispatch remains the on-demand path.
     - cron: '17 3 * * *'
   workflow_dispatch:
     inputs:
@@ -55,6 +57,9 @@ env:
   MAIN_BRANCH: main
   ADAPTER_BRANCH: ios-adapter
   UPSTREAM_REPO: ${{ inputs.upstream_repo }}
+  # When workflow_dispatch passes the false flag or leaves the input off, these
+  # short-circuit expressions fall back to the values that keep the scheduled run
+  # quiet and automatic.
   AUTO_MERGE_MAIN: ${{ (github.event_name == 'workflow_dispatch' && inputs.auto_merge_main == false) && 'false' || 'true' }}
   DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && 'true' || 'false' }}
   JAVA_VERSION: '21'
@@ -156,6 +161,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The merge-base check below must compare both ref tips. Fetch them
+          # with explicit refspecs so a later shallow or partial checkout can
+          # never make the probe read stale or missing refs.
+          git fetch --no-tags origin \
+            "+refs/heads/${MAIN_BRANCH}:refs/remotes/origin/${MAIN_BRANCH}" \
+            "+refs/heads/${ADAPTER_BRANCH}:refs/remotes/origin/${ADAPTER_BRANCH}"
           .github/scripts/sync-upstream.sh plan-adapter
 
       - name: Install the Multica CLI
@@ -183,6 +194,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.plan.outputs.pr }}
+          # Pass the conflict list through the step output; the RUNNER_TEMP file
+          # the script still writes is only a local dry-run backup.
+          CONFLICTS: ${{ steps.plan.outputs.conflicts }}
         run: .github/scripts/sync-upstream.sh handoff "$PR_NUMBER"
 
       - name: Summary

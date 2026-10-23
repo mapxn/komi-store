@@ -22,7 +22,7 @@ SYNC_BRANCH_PREFIX="${SYNC_BRANCH_PREFIX:-sync/upstream-main}"
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-upstream}"
 AUTO_MERGE_MAIN="${AUTO_MERGE_MAIN:-true}"
 DRY_RUN="${DRY_RUN:-0}"
-HANDOFF_ASSIGNEE="${HANDOFF_ASSIGNEE:-Mike}"
+HANDOFF_ASSIGNEE="${HANDOFF_ASSIGNEE:-Daniel}"
 HANDOFF_PROJECT="${HANDOFF_PROJECT:-Kimo-store}"
 
 log() { printf '%s\n' "$*"; }
@@ -88,10 +88,21 @@ sync_upstream_remote() {
 }
 
 fetch_origin() {
-  local ref
-  for ref in "$@"; do
-    git fetch --no-tags origin "+refs/heads/${ref}:refs/remotes/origin/${ref}"
+  # Depth is explicitly dropped: the ancestor probe must see the full shared
+  # history of both branches, not just the tips a shallow checkout keeps.
+  local refspecs=()
+  local fetch_ref
+  for fetch_ref in "$@"; do
+    refspecs+=("+refs/heads/${fetch_ref}:refs/remotes/origin/${fetch_ref}")
   done
+  git fetch --no-tags origin "${refspecs[@]}"
+  if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]] && \
+    ! git merge-base "refs/remotes/origin/${1}" "refs/remotes/origin/${2:-$1}" >/dev/null 2>&1; then
+    git fetch --no-tags --unshallow origin "${refspecs[@]}"
+  fi
+  if ! git merge-base "refs/remotes/origin/${1}" "refs/remotes/origin/${2:-$1}" >/dev/null 2>&1; then
+    fail "fetch_origin: cannot find a merge base for $*"
+  fi
 }
 
 # Prints "<fork-only> <upstream-only>" commits for the two mains.
@@ -105,11 +116,17 @@ latest_upstream_release() {
 }
 
 # has_marker PR MARKER: true when the PR already carries a bot comment with the
-# given sync-upstream marker, so repeated daily runs stay quiet.
+# given sync-upstream marker, so repeated daily runs stay quiet. A failed query
+# must never look like "no marker", otherwise a network blip re-posts the
+# comment.
 has_marker() {
   local pr="$1" marker="$2"
-  gh pr view "$pr" --json comments --jq '.comments[].body' 2>/dev/null |
-    grep -qF "sync-upstream:${marker}"
+  [[ "$pr" == "dry-run" || -z "$pr" ]] && return 1
+  local out
+  if ! out=$(gh pr view "$pr" --json comments --jq '.comments[].body'); then
+    fail "has_marker: cannot read comments on PR #${pr}"
+  fi
+  grep -qF "sync-upstream:${marker}" <<<"$out"
 }
 
 comment_once() {
@@ -225,8 +242,10 @@ cmd_sync_main() {
     run git push origin "refs/heads/${branch}:refs/heads/${branch}"
   fi
 
-  pr=$(gh pr list --state open --base "$MAIN_BRANCH" --head "$branch" \
-    --json number --jq '.[0].number // empty')
+  if ! pr=$(gh pr list --state open --base "$MAIN_BRANCH" --head "$branch" \
+    --json number --jq '.[0].number // empty'); then
+    fail "cannot list open PRs for ${MAIN_BRANCH} <- ${branch}"
+  fi
   if [[ -z "$pr" ]]; then
     body=$(pr_body_sync_main "$upstream" "$sha" "$behind" "$ahead" "$state")
     if [[ "$DRY_RUN" == "1" ]]; then
@@ -337,8 +356,10 @@ cmd_plan_adapter() {
     : >"$(work_file 'conflicts.txt')"
   fi
 
-  pr=$(gh pr list --state open --base "$ADAPTER_BRANCH" --head "$MAIN_BRANCH" \
-    --json number --jq '.[0].number // empty')
+  if ! pr=$(gh pr list --state open --base "$ADAPTER_BRANCH" --head "$MAIN_BRANCH" \
+    --json number --jq '.[0].number // empty'); then
+    fail "cannot list open PRs for ${ADAPTER_BRANCH} <- ${MAIN_BRANCH}"
+  fi
   if [[ -z "$pr" ]]; then
     body=$(pr_body_adapter "$main_sha" "$adapter_sha" "$clean" "$conflicts")
     if [[ "$DRY_RUN" == "1" ]]; then
@@ -416,10 +437,14 @@ handoff_issue_body() { # <pr> <conflicts>
 
 cmd_handoff() {
   local pr="${1:-}" conflicts degrade_reason
-  conflicts=$(cat "$(work_file 'conflicts.txt')" 2>/dev/null || true)
+  # The plan step already outputs the conflict list; the file copy kept by
+  # plan-adapter is only a local dry-run backup.
+  conflicts="${CONFLICTS:-$(cat "$(work_file 'conflicts.txt')" 2>/dev/null || true)}"
   if [[ -z "$pr" ]]; then
-    pr=$(gh pr list --state open --base "$ADAPTER_BRANCH" --head "$MAIN_BRANCH" \
-      --json number --jq '.[0].number // empty')
+    if ! pr=$(gh pr list --state open --base "$ADAPTER_BRANCH" --head "$MAIN_BRANCH" \
+      --json number --jq '.[0].number // empty'); then
+      fail "cannot list open PRs for ${ADAPTER_BRANCH} <- ${MAIN_BRANCH}"
+    fi
   fi
 
   if has_marker "$pr" handoff; then
