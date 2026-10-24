@@ -43,12 +43,14 @@ interface InstalledAppsRepository {
 
     suspend fun checkAllForUpdates()
 
+    @Suppress("LongParameterList")
     suspend fun updateAppVersion(
         packageName: String,
         newTag: String,
         newReleaseId: Long?,
         newAssetId: Long?,
         newAssetDigest: String?,
+        newReleasePublishedAt: String? = null,
         newAssetName: String?,
         newAssetUrl: String?,
         newVersionName: String,
@@ -67,6 +69,11 @@ interface InstalledAppsRepository {
         installedVersionName: String?,
         installedVersionCode: Long,
         isUpdateAvailable: Boolean,
+    )
+
+    suspend fun updateSigningFingerprint(
+        packageName: String,
+        signingFingerprint: String,
     )
 
     suspend fun updatePendingStatus(
@@ -120,6 +127,10 @@ interface InstalledAppsRepository {
         path: String,
         version: String?,
         assetName: String?,
+        releaseId: Long? = null,
+        assetId: Long? = null,
+        releasePublishedAt: String? = null,
+        assetDigest: String? = null,
     )
 
     suspend fun discardParkedInstall(

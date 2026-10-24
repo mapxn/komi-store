@@ -8,8 +8,8 @@ import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +43,6 @@ import zed.rainxch.apps.presentation.model.UpdateAllProgress
 import zed.rainxch.apps.presentation.model.UpdateState
 import zed.rainxch.apps.presentation.model.VariantOption
 import zed.rainxch.apps.presentation.model.VariantPickerError
-import zed.rainxch.core.domain.helpers.BrowserHelper
 import zed.rainxch.core.domain.helpers.ShareManager
 import zed.rainxch.core.domain.logging.KomiStoreLogger
 import zed.rainxch.core.domain.model.account.github.GithubAsset
@@ -57,6 +56,7 @@ import zed.rainxch.core.domain.repository.TweaksRepository
 import zed.rainxch.core.domain.system.DownloadOrchestrator
 import zed.rainxch.core.domain.system.DownloadSpec
 import zed.rainxch.core.domain.system.DownloadStagePhase
+import zed.rainxch.core.domain.system.InstallOutcome
 import zed.rainxch.core.domain.system.InstallPolicy
 import zed.rainxch.core.domain.system.Installer
 import zed.rainxch.core.domain.system.OrchestratedDownload
@@ -85,12 +85,11 @@ class AppsViewModel(
     private val downloadOrchestrator: DownloadOrchestrator,
     private val externalImportRepository: ExternalImportRepository,
     private val systemInstallSerializer: SystemInstallSerializer,
-    private val browserHelper: BrowserHelper,
+    private val appScope: CoroutineScope,
 ) : ViewModel() {
     companion object {
         private const val BANNER_THRESHOLD = 1
         private const val UPDATE_CHECK_COOLDOWN_MS = 30 * 60 * 1000L
-        private const val KAO_OPEN_LETTER_URL = "https://keepandroidopen.org/open-letter/"
     }
 
     private var hasLoadedInitialData = false
@@ -115,7 +114,6 @@ class AppsViewModel(
                 if (!hasLoadedInitialData) {
                     loadApps()
                     observePendingExternalImports()
-                    observeKaoBannerDismissed()
                     hasLoadedInitialData = true
                 }
             }.map { it.withDerived() }
@@ -188,14 +186,6 @@ class AppsViewModel(
             updateGroups = updates.groupedByRepo(),
             idleGroups = idle.groupedByRepo(),
         )
-    }
-
-    private fun observeKaoBannerDismissed() {
-        viewModelScope.launch {
-            tweaksRepository.getKaoBannerDismissed().collect { dismissed ->
-                _state.update { it.copy(showKaoBanner = !dismissed) }
-            }
-        }
     }
 
     private fun observePendingExternalImports() {
@@ -711,18 +701,6 @@ class AppsViewModel(
                 }
             }
 
-            AppsAction.OnDismissKaoBanner -> {
-                viewModelScope.launch {
-                    tweaksRepository.setKaoBannerDismissed(true)
-                }
-            }
-
-            AppsAction.OnKaoLearnMore -> {
-                browserHelper.openUrl(KAO_OPEN_LETTER_URL) { error ->
-                    logger.warn("Failed to open KAO open letter: $error")
-                }
-            }
-
             is AppsAction.OnUninstallConfirmed -> {
                 uninstallApp(action.app)
                 _state.update { it.copy(appPendingUninstall = null) }
@@ -1191,6 +1169,10 @@ class AppsViewModel(
         }
     }
 
+    private class NoReleaseFoundException(
+        appName: String,
+    ) : IllegalStateException("No release found for $appName")
+
     private data class UpdateTarget(
         val tag: String,
         val releaseId: Long?,
@@ -1241,7 +1223,7 @@ class AppsViewModel(
             } catch (e: Exception) {
                 logger.error("Failed to resolve the tracked release: ${e.message}")
                 throw IllegalStateException("Failed to fetch latest release: ${e.message}")
-            } ?: throw IllegalStateException("No release found for ${app.appName}")
+            } ?: throw NoReleaseFoundException(app.appName)
 
         return UpdateTarget(
             tag = resolution.release.tagName,
@@ -1249,6 +1231,17 @@ class AppsViewModel(
             asset = resolution.primaryAsset,
             fromStoredMatch = false,
         )
+    }
+
+    // The release window comes back empty both when nothing matches and when the fetch failed, so
+    // this must not touch the park: report it once and go idle instead of leaving an error on the row.
+    private suspend fun reportMissingRelease(
+        app: InstalledAppUi,
+        cause: Throwable,
+    ) {
+        logger.warn("No release to install for ${app.packageName}: ${cause.message}")
+        updateAppState(app.packageName, UpdateState.Idle)
+        _events.send(AppsEvent.ShowError(getString(Res.string.apps_no_release_found)))
     }
 
     private fun updateSingleApp(
@@ -1318,6 +1311,7 @@ class AppsViewModel(
                             InstallerType.DHIZUKU -> InstallPolicy.AlwaysInstall
                             InstallerType.ROOT -> InstallPolicy.AlwaysInstall
                             InstallerType.DEFAULT -> InstallPolicy.InstallWhileForeground
+                            InstallerType.THIRD_PARTY -> InstallPolicy.InstallWhileForeground
                         }
 
                     downloadOrchestrator.enqueue(
@@ -1386,27 +1380,32 @@ class AppsViewModel(
 
                     updateAppState(app.packageName, UpdateState.Installing)
 
-                    try {
-                        systemInstallSerializer.awaitFreeAndMarkPending(
-                            app.packageName,
-                            timeoutMs = if (waitForInstallGate) SystemInstallSerializer.DEFAULT_TIMEOUT_MS else 0L,
-                        )
-                        installer.install(filePath, ext)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        systemInstallSerializer.markCompleted(app.packageName)
-                        installedAppsRepository.updatePendingStatus(app.packageName, false)
-                        throw e
-                    }
+                    val installOutcome =
+                        try {
+                            systemInstallSerializer.awaitFreeAndMarkPending(
+                                app.packageName,
+                                timeoutMs = if (waitForInstallGate) SystemInstallSerializer.DEFAULT_TIMEOUT_MS else 0L,
+                            )
+                            installer.install(filePath, ext)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            systemInstallSerializer.markCompleted(app.packageName)
+                            installedAppsRepository.updatePendingStatus(app.packageName, false)
+                            throw e
+                        }
 
                     downloadOrchestrator.dismiss(app.packageName)
-                    try {
-                        installedAppsRepository.setPendingInstallFilePath(app.packageName, null)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (clearEx: Exception) {
-                        logger.error("Failed to clear pending install file path: ${clearEx.message}")
+                    // A delegated install keeps its parked file: the card must offer Install until the
+                    // system proves the new version landed, otherwise it silently reverts to Update.
+                    if (installOutcome == InstallOutcome.COMPLETED) {
+                        try {
+                            installedAppsRepository.setPendingInstallFilePath(app.packageName, null)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (clearEx: Exception) {
+                            logger.error("Failed to clear pending install file path: ${clearEx.message}")
+                        }
                     }
 
                     updateAppState(app.packageName, UpdateState.Idle)
@@ -1435,6 +1434,8 @@ class AppsViewModel(
                     )
                 } catch (e: CancellationException) {
                     throw e
+                } catch (e: NoReleaseFoundException) {
+                    reportMissingRelease(app, e)
                 } catch (e: Exception) {
                     logger.error("Update failed for ${app.packageName}: ${e.message}")
                     cleanupUpdate(app.packageName, app.latestAssetName)
@@ -1896,6 +1897,8 @@ class AppsViewModel(
                 } catch (_: RateLimitException) {
                     updateAppState(app.packageName, UpdateState.Idle)
                     _events.send(AppsEvent.ShowError(getString(Res.string.rate_limit_exceeded)))
+                } catch (e: NoReleaseFoundException) {
+                    reportMissingRelease(app, e)
                 } catch (e: Exception) {
                     logger.error("Downloading ${app.packageName} again failed: ${e.message}")
                     updateAppState(app.packageName, UpdateState.Error(e.message ?: "Download failed"))
@@ -2459,7 +2462,7 @@ class AppsViewModel(
         val packageNames = activeUpdates.keys.toList()
         activeUpdates.values.forEach { it.cancel() }
 
-        viewModelScope.launch(NonCancellable) {
+        appScope.launch {
             for (packageName in packageNames) {
                 try {
                     downloadOrchestrator.downgradeToDeferred(packageName)

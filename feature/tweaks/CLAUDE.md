@@ -1,6 +1,6 @@
 # Tweaks Feature
 
-Single home for app-level settings: appearance, language, proxy, GitHub mirror, custom forges, translation, installer choice (Default / Shizuku / Dhizuku / Root), update checks, seen / hidden / skipped lists, access tokens, feedback, plus the About and Licenses screens. Presentation-only module.
+Single home for app-level settings: appearance, language, proxy, GitHub mirror, custom forges, translation, installer choice (Default / Shizuku / Dhizuku / Root / Third-party), update checks, seen / hidden / skipped lists, access tokens, feedback, plus the About and Licenses screens. Presentation-only module.
 
 ## Structure
 
@@ -30,7 +30,7 @@ Android: one scrolling column of Look & feel, Connectivity, Installs & updates, 
 
 ## Sub-screen VMs (registered in `composeApp/.../app/di/ViewModelsModule.kt`)
 
-`SkippedUpdatesViewModel` (unskip = `setSkippedReleaseTag(pkg, null)` then `checkForUpdates`), `HiddenRepositoriesViewModel` (`HiddenReposRepository.unhide` / `clearAll`), `HostTokensViewModel` (`HostTokenRepository`), `FeedbackViewModel`, `MirrorPickerViewModel` (explicit `viewModel {}`; measures every mirror on open through `MirrorRepository.measureLatencies()`, Direct included; "Pick fastest" (`OnAutoPickFastest`) applies `fastestReleaseMirror` once; the `named("test")` HttpClient only backs the 5 s "Test connection"), `AppInfoViewModel`, `LicensesViewModel`.
+`SkippedUpdatesViewModel` (unskip = `setSkippedReleaseTag(pkg, null)` then `checkForUpdates`), `HiddenRepositoriesViewModel` (`HiddenReposRepository.unhide` / `clearAll`), `HostTokensViewModel` (`HostTokenRepository`), `FeedbackViewModel`, `MirrorPickerViewModel` (explicit `viewModel {}`; measures every mirror on open through `MirrorRepository.measureLatencies()`, Direct included (`MirrorRepositoryImpl` adds the bundled `direct` entry to a catalog that lacks it); "Pick fastest" (`OnAutoPickFastest`) applies `fastestReleaseMirror` once; the `named("test")` HttpClient only backs the 5 s "Test connection"), `AppInfoViewModel`, `LicensesViewModel`.
 
 ## Navigation
 
@@ -40,8 +40,12 @@ Android: one scrolling column of Look & feel, Connectivity, Installs & updates, 
 
 - `include_pre_releases` is only a default: new `InstalledApp` rows (install in `InstallationManagerImpl`, link in `AppsRepositoryImpl.linkAppToRepo`) copy it into `includePreReleases`. Existing rows keep their per-app value.
 - **Proxy:** a master config plus one config per `ProxyScope` (`DISCOVERY` / `DOWNLOAD` / `TRANSLATION`). Only the per-scope configs reach `ProxyManager`; `TweaksViewModel` copies the master into every scope flagged use-master when it is saved. `ProxyRepository.setMasterProxyConfig` alone changes no traffic.
+- **Repository layout (Look & feel):** `OnRepoLayoutSelected` writes `TweaksRepository.setRepoGridLayout`, the list or grid that Explore, Top Charts, Search and the category list read. Those screens have no toggle of their own.
 - **Content width (desktop only, Look & feel):** `OnContentWidthSelected` persists `ContentWidth` (`COMPACT` / `WIDE` / `EXTRA_WIDE`). `MainViewModel` feeds it to `LocalContentWidth` (provided in `AppNavigation`); screens read it through `contentWidthCap()` / `Modifier.constrainedContentWidth()` (core/presentation).
+- **Refresh rate (Android only, Look & feel):** the row lists `rememberDisplayModeOptions()` (core/presentation; empty on desktop, which hides the row) plus Automatic. `OnDisplayModeSelected` persists the mode id (`SYSTEM_DEFAULT_DISPLAY_MODE_ID` = Automatic); `MainActivity` applies it to `preferredDisplayModeId` and falls back to the system default for an id the display no longer reports. Some devices (HyperOS) accept the request but keep the panel at its peak rate.
 - **Custom forges (Connectivity):** `CustomForgesDialog` adds / removes hosts in `TweaksRepository`; the host rows under the entry can also remove. Hosts become `SearchSourceUi.CustomForge` chips in Search and are passed to `RepositoryUrlParser.parse` by the Apps link sheet and external import.
 - **Access Tokens (`HostTokensScreen`):** lists / adds / edits / deletes / validates per-host PATs in `HostTokenRepository`. Saved tokens are sent to their host by `HostTokenInterceptor` (`docs/agents/forges.md`).
 - **Translation provider:** Google and LibreTranslate switch immediately. Youdao, DeepL and Microsoft with a required credential field blank only set `draftTranslationProvider` (form shown, persisted provider unchanged); the switch happens on that provider's credentials save.
+- **Third-party installer:** the picked package is stored as `external_installer_package` in `TweaksRepository`. `ExternalInstallerDiscovery` lists apps with an APK `ACTION_VIEW` / `INSTALL_PACKAGE` filter, minus Komi and system apps. `SilentInstallerDispatcher` hands the APK over with `setPackage`, skipping Komi's own "Install unknown apps" check while an app is picked, and falls back to the Default install when nothing is picked or the app cannot be opened.
+- **Crash log (App, Android only):** `CrashLogs` (core/data androidMain, installed in `GithubStoreApp`) writes uncaught exceptions to `filesDir/crashes` and keeps the newest 3. The row shows when `CrashLogSharer.hasCrashLog()` is true at first load; `OnShareCrashLogClick` opens the share sheet for the newest file through the FileProvider. The Desktop binding always reports none, which hides the row.
 - **Language:** `OnAppLanguageSelected` persists the tag. Android applies it from `MainActivity` (collects `getAppLanguage()`, then `recreate()`). Desktop gets `OnAppLanguageChangeRequiresRestart`; the toast action calls `restartAppAfterLanguageChange()` (relaunch + `exitProcess`). The Android actual is empty and never called.

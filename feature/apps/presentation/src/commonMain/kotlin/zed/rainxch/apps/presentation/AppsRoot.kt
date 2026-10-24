@@ -3,6 +3,7 @@
 package zed.rainxch.apps.presentation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,13 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -31,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -39,16 +39,9 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import zed.rainxch.apps.presentation.components.AdvancedAppSettingsBottomSheet
-import zed.rainxch.apps.presentation.components.AppGroupCard
-import zed.rainxch.apps.presentation.components.AppGroupDivider
-import zed.rainxch.apps.presentation.components.AppGroupStack
-import zed.rainxch.apps.presentation.components.AppItemCard
 import zed.rainxch.apps.presentation.components.AppsSectionHeader
 import zed.rainxch.apps.presentation.components.AppsTopbar
-import zed.rainxch.apps.presentation.components.CompactAppRow
 import zed.rainxch.apps.presentation.components.ImportSummarySheet
-import zed.rainxch.apps.presentation.components.InProgressAppCard
-import zed.rainxch.apps.presentation.components.KaoBanner
 import zed.rainxch.apps.presentation.components.LinkAppBottomSheet
 import zed.rainxch.apps.presentation.components.PendingDiscardSheet
 import zed.rainxch.apps.presentation.components.PendingUninstallSheet
@@ -56,21 +49,22 @@ import zed.rainxch.apps.presentation.components.UpdatesBanner
 import zed.rainxch.apps.presentation.components.VariantPickerDialog
 import zed.rainxch.apps.presentation.import.components.ImportProposalBanner
 import zed.rainxch.apps.presentation.model.AppGroup
-import zed.rainxch.apps.presentation.model.AppItem
 import zed.rainxch.apps.presentation.model.InstalledAppUi
 import zed.rainxch.core.presentation.components.ScrollbarContainer
 import zed.rainxch.core.presentation.components.buttons.KomiFab
+import zed.rainxch.core.presentation.components.bars.LocalTabCardSlot
 import zed.rainxch.core.presentation.components.inputs.KomiTextField
 import zed.rainxch.core.presentation.components.overlays.KomiToastState
 import zed.rainxch.core.presentation.components.overlays.rememberKomiToastState
 import zed.rainxch.core.presentation.components.progress.KomiCircularProgress
+import zed.rainxch.core.presentation.components.progress.KomiLoadingIndicator
 import zed.rainxch.core.presentation.components.refresh.KomiPullToRefresh
 import zed.rainxch.core.presentation.components.refresh.drivesPullToRefresh
 import zed.rainxch.core.presentation.components.scaffold.KomiScaffold
 import zed.rainxch.core.presentation.components.text.KomiText
 import zed.rainxch.core.presentation.components.text.KomiTextRole
 import zed.rainxch.core.presentation.layout.CardGridSpec
-import zed.rainxch.core.presentation.layout.rememberWidthCappedGridCells
+import zed.rainxch.core.presentation.layout.rememberWidthCappedStaggeredCells
 import zed.rainxch.core.presentation.locals.LocalPersonality
 import zed.rainxch.core.presentation.locals.LocalScrollbarEnabled
 import zed.rainxch.core.presentation.personality.utils.PersonalityPreview
@@ -94,6 +88,11 @@ import zed.rainxch.githubstore.core.presentation.res.no_apps_found
 import zed.rainxch.githubstore.core.presentation.res.search_your_apps
 import zed.rainxch.githubstore.core.presentation.res.uninstall
 import kotlin.time.ExperimentalTime
+import zed.rainxch.core.presentation.layout.withoutBottom
+import zed.rainxch.apps.presentation.components.LibraryAppRow
+import zed.rainxch.apps.presentation.components.LibraryDownloadRow
+import zed.rainxch.apps.presentation.components.LibraryGroup
+import zed.rainxch.apps.presentation.components.LibraryGroupDivider
 
 @Composable
 fun AppsRoot(
@@ -217,16 +216,24 @@ fun AppsScreen(
     toastState: KomiToastState,
 ) {
     val colors = LocalPersonality.current.colors
+    // Classic's tab card holds the search field; elsewhere it stays above the list.
+    val searchInCard = LocalTabCardSlot.current != null
     KomiScaffold(
         topBar = {
             AppsTopbar(
                 onAction = onAction,
-                state = state
+                state = state,
+                search =
+                    if (searchInCard) {
+                        { AppsSearchField(query = state.searchQuery, onAction = onAction, modifier = Modifier.fillMaxWidth()) }
+                    } else {
+                        null
+                    },
             )
         },
         floatingActionButton = {
             KomiFab(
-                icon = Icons.Default.Add,
+                icon = Icons.Rounded.Add,
                 contentDescription = stringResource(Res.string.add_by_link),
                 onClick = {
                     onAction(AppsAction.OnAddByLinkClick)
@@ -240,7 +247,7 @@ fun AppsScreen(
             onRefresh = { onAction(AppsAction.OnRefresh) },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding.withoutBottom()),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -248,17 +255,17 @@ fun AppsScreen(
                 Column(
                     modifier = Modifier.fillMaxHeight(),
                 ) {
-                    KomiTextField(
-                        value = state.searchQuery,
-                        onValueChange = { onAction(AppsAction.OnSearchChange(it)) },
-                        leadingIcon = Icons.Default.Search,
-                        placeholder = stringResource(Res.string.search_your_apps),
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .drivesPullToRefresh()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
+                    if (!searchInCard) {
+                        AppsSearchField(
+                            query = state.searchQuery,
+                            onAction = onAction,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .drivesPullToRefresh()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
 
                     if (state.isCheckingForUpdates) {
                         Row(
@@ -276,7 +283,6 @@ fun AppsScreen(
                             KomiText(
                                 text = stringResource(Res.string.checking_for_updates),
                                 role = KomiTextRole.Body,
-                                fontSize = 13.sp,
                                 color = colors.onSurfaceVariant,
                             )
                         }
@@ -288,8 +294,6 @@ fun AppsScreen(
                                     formatLastChecked(state.lastCheckedTimestamp),
                                 ),
                             role = KomiTextRole.Body,
-                            fontSize = 13.sp,
-                            uppercase = false,
                             color = colors.onSurfaceVariant,
                             modifier = Modifier
                                 .drivesPullToRefresh()
@@ -297,12 +301,11 @@ fun AppsScreen(
                         )
                     }
 
-                    val listState = rememberLazyGridState()
+                    val listState = rememberLazyStaggeredGridState()
                     KeepAtTopWhenSectionsChange(
                         gridState = listState,
                         sections = listOf(
                             state.showImportProposalBanner,
-                            state.showKaoBanner,
                             state.pendingApps.isNotEmpty(),
                             state.updateApps.isNotEmpty() || state.isUpdatingAll,
                             state.inProgressDownloads.isNotEmpty(),
@@ -315,7 +318,7 @@ fun AppsScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                KomiCircularProgress()
+                                KomiLoadingIndicator()
                             }
                         }
 
@@ -326,7 +329,7 @@ fun AppsScreen(
                             ) {
                                 KomiText(
                                     text = stringResource(Res.string.no_apps_found),
-                                    role = KomiTextRole.Title,
+                                    role = KomiTextRole.SectionTitle,
                                     color = colors.onBackground,
                                 )
                             }
@@ -358,10 +361,10 @@ fun AppsScreen(
                                         start = 12.dp,
                                         end = 12.dp,
                                         top = 8.dp,
-                                        bottom = 88.dp,
+                                        bottom = 88.dp + innerPadding.calculateBottomPadding(),
                                     )
                                 val appGridCells =
-                                    rememberWidthCappedGridCells(contentPadding = appGridPadding)
+                                    rememberWidthCappedStaggeredCells(contentPadding = appGridPadding)
 
                                 val installedVersions =
                                     remember(state.apps) {
@@ -370,19 +373,18 @@ fun AppsScreen(
                                         }
                                     }
 
-                                LazyVerticalGrid(
+                                LazyVerticalStaggeredGrid(
                                     columns = appGridCells,
                                     state = listState,
                                     modifier = Modifier.fillMaxSize().arrowKeyScroll(listState),
-
                                     contentPadding = appGridPadding,
-                                    verticalArrangement = Arrangement.spacedBy(CardGridSpec.GridItemSpacing),
+                                    verticalItemSpacing = CardGridSpec.GridItemSpacing,
                                     horizontalArrangement = CardGridSpec.GridArrangement,
                                 ) {
                                     if (state.inProgressDownloads.isNotEmpty()) {
                                         item(
                                             key = "header-in-progress",
-                                            span = { GridItemSpan(maxLineSpan) },
+                                            span = StaggeredGridItemSpan.FullLine,
                                         ) {
                                             AppsSectionHeader(
                                                 title = stringResource(Res.string.apps_section_in_progress),
@@ -411,16 +413,11 @@ fun AppsScreen(
                                                         )
                                                     }
                                                 }
-                                            InProgressAppCard(
+                                            LibraryDownloadRow(
                                                 download = download,
                                                 installedVersion =
                                                     installedVersions[download.packageName],
-                                                rowItem =
-                                                    state.apps.find {
-                                                        it.installedApp.packageName == download.packageName
-                                                    },
                                                 onOpenRepo = openRepo,
-                                                onRowAction = onAction,
                                                 onPause = {
                                                     onAction(
                                                         AppsAction.OnCancelInProgressDownload(
@@ -468,7 +465,7 @@ fun AppsScreen(
                                     }
 
                                     if (state.showImportProposalBanner) {
-                                        item(key = "external-import-banner", span = { GridItemSpan(maxLineSpan) }) {
+                                        item(key = "external-import-banner", span = StaggeredGridItemSpan.FullLine) {
                                             ImportProposalBanner(
                                                 pendingCount = state.pendingExternalImportCount,
                                                 onReview = { onAction(AppsAction.OnImportProposalReview) },
@@ -477,17 +474,8 @@ fun AppsScreen(
                                         }
                                     }
 
-                                    if (state.showKaoBanner) {
-                                        item(key = "kao-banner", span = { GridItemSpan(maxLineSpan) }) {
-                                            KaoBanner(
-                                                onLearnMore = { onAction(AppsAction.OnKaoLearnMore) },
-                                                onDismiss = { onAction(AppsAction.OnDismissKaoBanner) },
-                                            )
-                                        }
-                                    }
-
                                     if (state.pendingApps.isNotEmpty()) {
-                                        item(key = "header-pending-installs", span = { GridItemSpan(maxLineSpan) }) {
+                                        item(key = "header-pending-installs", span = StaggeredGridItemSpan.FullLine) {
                                             AppsSectionHeader(
                                                 title = stringResource(Res.string.apps_section_pending_installs),
                                                 count = state.pendingApps.size,
@@ -501,7 +489,7 @@ fun AppsScreen(
                                             state.pendingGroups,
                                             key = { group -> "pending-${group.key}" },
                                         ) { group ->
-                                            AppItemCardGroup(
+                                            LibraryGroupItem(
                                                 group = group,
                                                 onAction = onAction,
                                                 onOpenRepo = onRowSelect,
@@ -510,7 +498,7 @@ fun AppsScreen(
                                     }
 
                                     if (state.updateApps.isNotEmpty() || state.isUpdatingAll) {
-                                        item(key = "updates-banner", span = { GridItemSpan(maxLineSpan) }) {
+                                        item(key = "updates-banner", span = StaggeredGridItemSpan.FullLine) {
                                             UpdatesBanner(
                                                 count = state.updateApps.size,
                                                 isExpanded = state.isUpdatesSectionExpanded,
@@ -529,7 +517,7 @@ fun AppsScreen(
                                             state.updateGroups,
                                             key = { group -> "rich-${group.key}" },
                                         ) { group ->
-                                            AppItemCardGroup(
+                                            LibraryGroupItem(
                                                 group = group,
                                                 onAction = onAction,
                                                 onOpenRepo = onRowSelect,
@@ -538,7 +526,7 @@ fun AppsScreen(
                                     }
 
                                     if (state.idleApps.isNotEmpty()) {
-                                        item(key = "header-up-to-date", span = { GridItemSpan(maxLineSpan) }) {
+                                        item(key = "header-up-to-date", span = StaggeredGridItemSpan.FullLine) {
                                             AppsSectionHeader(
                                                 title = stringResource(Res.string.apps_section_up_to_date),
                                                 count = state.idleApps.size,
@@ -555,31 +543,16 @@ fun AppsScreen(
                                                 state.idleGroups,
                                                 key = { group -> "compact-${group.key}" },
                                             ) { group ->
-                                                val single = group.items.singleOrNull()
-                                                if (single != null) {
-                                                    CompactAppRowWithActions(
-                                                        appItem = single,
-                                                        onAction = onAction,
-                                                        onRowSelect = onRowSelect,
-                                                    )
-                                                } else {
-                                                    AppGroupCard(header = group.items.first().installedApp) {
-                                                        group.items.forEachIndexed { index, appItem ->
-                                                            if (index > 0) AppGroupDivider()
-                                                            CompactAppRowWithActions(
-                                                                appItem = appItem,
-                                                                onAction = onAction,
-                                                                onRowSelect = onRowSelect,
-                                                                framed = false,
-                                                            )
-                                                        }
-                                                    }
-                                                }
+                                                LibraryGroupItem(
+                                                    group = group,
+                                                    onAction = onAction,
+                                                    onOpenRepo = onRowSelect,
+                                                )
                                             }
                                         }
                                     }
 
-                                    item(key = "trailing-spacer", span = { GridItemSpan(maxLineSpan) }) {
+                                    item(key = "trailing-spacer", span = StaggeredGridItemSpan.FullLine) {
                                         Spacer(Modifier.height(32.dp))
                                     }
                                 }
@@ -595,8 +568,24 @@ fun AppsScreen(
 // A lazy grid keeps its first visible item in place, so a section that appears above it while
 // the user is at the top (an update check finding updates) would land offscreen.
 @Composable
+private fun AppsSearchField(
+    query: String,
+    onAction: (AppsAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    KomiTextField(
+        value = query,
+        onValueChange = { onAction(AppsAction.OnSearchChange(it)) },
+        leadingIcon = Icons.Rounded.Search,
+        clearable = true,
+        placeholder = stringResource(Res.string.search_your_apps),
+        modifier = modifier,
+    )
+}
+
+@Composable
 private fun KeepAtTopWhenSectionsChange(
-    gridState: LazyGridState,
+    gridState: LazyStaggeredGridState,
     sections: List<Boolean>,
 ) {
     val previous = remember { arrayOf(sections) }
@@ -607,150 +596,29 @@ private fun KeepAtTopWhenSectionsChange(
     }
 }
 
+// An app on its own card, or several apps from one repo on one card.
 @Composable
-private fun AppItemCardWithActions(
-    appItem: AppItem,
-    onAction: (AppsAction) -> Unit,
-    onOpenRepo: (InstalledAppUi) -> Unit,
-) {
-    AppItemCard(
-        appItem = appItem,
-        onOpenClick = {
-            onAction(
-                AppsAction.OnOpenApp(
-                    appItem.installedApp
-                )
-            )
-        },
-        onUpdateClick = {
-            onAction(
-                AppsAction.OnUpdateApp(
-                    appItem.installedApp
-                )
-            )
-        },
-        onUninstallClick = {
-            onAction(
-                AppsAction.OnUninstallApp(
-                    appItem.installedApp
-                )
-            )
-        },
-        onRepoClick = { onOpenRepo(appItem.installedApp) },
-        onTogglePreReleases = { enabled ->
-            onAction(
-                AppsAction.OnTogglePreReleases(
-                    appItem.installedApp.packageName,
-                    enabled
-                )
-            )
-        },
-        onToggleUpdateCheck = { enabled ->
-            onAction(
-                AppsAction.OnToggleUpdateCheck(
-                    appItem.installedApp.packageName,
-                    enabled
-                )
-            )
-        },
-        onAdvancedSettingsClick = {
-            onAction(
-                AppsAction.OnOpenAdvancedSettings(
-                    appItem.installedApp
-                )
-            )
-        },
-        onPickVariantClick = {
-            onAction(
-                AppsAction.OnOpenVariantPicker(
-                    app = appItem.installedApp,
-                    resumeUpdateAfterPick = false,
-                ),
-            )
-        },
-        onInstallPendingClick = {
-            onAction(
-                AppsAction.OnInstallPendingApp(
-                    appItem.installedApp
-                )
-            )
-        },
-        onDiscardPendingClick = {
-            onAction(
-                AppsAction.OnDiscardPendingInstall(
-                    appItem.installedApp
-                )
-            )
-        },
-        onSkipVersionClick = {
-            val tag =
-                appItem.installedApp.latestVersion
-                    ?: appItem.installedApp.latestVersionName
-            if (!tag.isNullOrBlank()) {
-                onAction(
-                    AppsAction.OnSkipReleaseTag(
-                        appItem.installedApp.packageName,
-                        tag,
-                    ),
-                )
-            }
-        },
-        onUnskipVersionClick = {
-            onAction(
-                AppsAction.OnUnskipReleaseTag(
-                    appItem.installedApp.packageName
-                )
-            )
-        },
-    )
-}
-
-@Composable
-private fun AppItemCardGroup(
+private fun LibraryGroupItem(
     group: AppGroup,
     onAction: (AppsAction) -> Unit,
     onOpenRepo: (InstalledAppUi) -> Unit,
 ) {
     val single = group.items.singleOrNull()
     if (single != null) {
-        AppItemCardWithActions(appItem = single, onAction = onAction, onOpenRepo = onOpenRepo)
+        LibraryAppRow(appItem = single, onAction = onAction, onOpenRepo = { onOpenRepo(single.installedApp) })
         return
     }
-    AppGroupStack(header = group.items.first().installedApp) {
-        group.items.forEach { appItem ->
-            AppItemCardWithActions(appItem = appItem, onAction = onAction, onOpenRepo = onOpenRepo)
+    LibraryGroup(header = group.items.first().installedApp) {
+        group.items.forEachIndexed { index, appItem ->
+            if (index > 0) LibraryGroupDivider()
+            LibraryAppRow(
+                appItem = appItem,
+                onAction = onAction,
+                onOpenRepo = { onOpenRepo(appItem.installedApp) },
+                framed = false,
+            )
         }
     }
-}
-
-@Composable
-private fun CompactAppRowWithActions(
-    appItem: AppItem,
-    onAction: (AppsAction) -> Unit,
-    onRowSelect: (InstalledAppUi) -> Unit,
-    framed: Boolean = true,
-) {
-    val app = appItem.installedApp
-    CompactAppRow(
-        appItem = appItem,
-        onOpenClick = { onAction(AppsAction.OnOpenApp(app)) },
-        onInstallPendingClick = { onAction(AppsAction.OnInstallPendingApp(app)) },
-        onDiscardPendingClick = { onAction(AppsAction.OnDiscardPendingInstall(app)) },
-        onAdvancedSettingsClick = { onAction(AppsAction.OnOpenAdvancedSettings(app)) },
-        onPickVariantClick = {
-            onAction(AppsAction.OnOpenVariantPicker(app = app, resumeUpdateAfterPick = false))
-        },
-        onUninstallClick = { onAction(AppsAction.OnUninstallApp(app)) },
-        onTogglePreReleases = { enabled ->
-            onAction(AppsAction.OnTogglePreReleases(app.packageName, enabled))
-        },
-        onToggleUpdateCheck = { enabled ->
-            onAction(AppsAction.OnToggleUpdateCheck(app.packageName, enabled))
-        },
-        onUnskipVersionClick = { onAction(AppsAction.OnUnskipReleaseTag(app.packageName)) },
-        onRowClick = { onRowSelect(app) },
-        framed = framed,
-    )
 }
 
 @Preview

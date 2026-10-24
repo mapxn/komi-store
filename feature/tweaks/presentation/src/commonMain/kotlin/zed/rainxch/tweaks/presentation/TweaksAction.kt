@@ -35,6 +35,10 @@ sealed interface TweaksAction {
         val enabled: Boolean,
     ) : TweaksAction
 
+    data class OnRepoLayoutSelected(
+        val grid: Boolean,
+    ) : TweaksAction
+
     data class OnDarkThemeChange(
         val isDarkTheme: Boolean?,
     ) : TweaksAction
@@ -49,6 +53,10 @@ sealed interface TweaksAction {
 
     data class OnContentWidthSelected(
         val width: ContentWidth,
+    ) : TweaksAction
+
+    data class OnDisplayModeSelected(
+        val modeId: Int,
     ) : TweaksAction
 
     data class OnProxyTypeSelected(
@@ -86,6 +94,14 @@ sealed interface TweaksAction {
 
     data class OnProxyTest(
         val scope: ProxyScope,
+    ) : TweaksAction
+
+    data class OnExternalInstallerPickerOpenChanged(
+        val open: Boolean,
+    ) : TweaksAction
+
+    data class OnExternalInstallerSelected(
+        val packageName: String,
     ) : TweaksAction
 
     data class OnInstallerTypeSelected(
@@ -149,6 +165,8 @@ sealed interface TweaksAction {
     data object OnFeedbackClick : TweaksAction
 
     data object OnFeedbackDismiss : TweaksAction
+
+    data object OnShareCrashLogClick : TweaksAction
 
     data object OnLanguagePickerOpen : TweaksAction
 

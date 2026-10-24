@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.InstallMobile
 import androidx.compose.material.icons.outlined.RemoveCircleOutline
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.foundation.clickable
@@ -39,9 +40,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import org.jetbrains.compose.resources.stringResource
@@ -59,6 +58,8 @@ import zed.rainxch.githubstore.core.presentation.res.import_summary_format_obtai
 import zed.rainxch.githubstore.core.presentation.res.import_summary_imported
 import zed.rainxch.githubstore.core.presentation.res.import_summary_non_github
 import zed.rainxch.githubstore.core.presentation.res.import_summary_non_github_caption
+import zed.rainxch.githubstore.core.presentation.res.import_summary_not_installed
+import zed.rainxch.githubstore.core.presentation.res.import_summary_not_installed_caption
 import zed.rainxch.githubstore.core.presentation.res.import_summary_title
 import zed.rainxch.githubstore.core.presentation.res.import_summary_unknown_caption
 import zed.rainxch.githubstore.core.presentation.res.import_summary_unknown_format
@@ -95,10 +96,8 @@ fun ImportSummarySheet(
             }
             KomiText(
                 text = stringResource(Res.string.import_summary_title, formatLabel),
-                role = KomiTextRole.Title,
+                role = KomiTextRole.CardTitle,
                 color = colors.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                uppercase = false,
             )
 
             val importedPart = stringResource(Res.string.import_summary_imported, summary.imported)
@@ -108,8 +107,13 @@ fun ImportSummarySheet(
             } else {
                 null
             }
+            val notInstalledPart = if (summary.notInstalled > 0) {
+                stringResource(Res.string.import_summary_not_installed, summary.notInstalled)
+            } else {
+                null
+            }
             val failedPart = stringResource(Res.string.import_summary_failed, summary.failed)
-            val announcement = listOfNotNull(importedPart, skippedPart, nonGitHubPart, failedPart)
+            val announcement = listOfNotNull(importedPart, skippedPart, notInstalledPart, nonGitHubPart, failedPart)
                 .joinToString(", ")
             KomiText(
                 text = "",
@@ -140,6 +144,18 @@ fun ImportSummarySheet(
                     items = summary.skippedItems,
                     expanded = ImportSummaryBucket.SKIPPED in expandedBuckets,
                     onToggle = { onToggleBucket(ImportSummaryBucket.SKIPPED) },
+                )
+            }
+
+            if (summary.notInstalled > 0) {
+                SummaryBucket(
+                    icon = Icons.Outlined.InstallMobile,
+                    tint = colors.onSurfaceVariant,
+                    title = stringResource(Res.string.import_summary_not_installed, summary.notInstalled),
+                    caption = stringResource(Res.string.import_summary_not_installed_caption),
+                    items = summary.notInstalledItems,
+                    expanded = ImportSummaryBucket.NOT_INSTALLED in expandedBuckets,
+                    onToggle = { onToggleBucket(ImportSummaryBucket.NOT_INSTALLED) },
                 )
             }
 
@@ -206,11 +222,8 @@ private fun UnknownFormatSheet(
 
                 KomiText(
                     text = stringResource(Res.string.import_summary_unknown_format),
-                    role = KomiTextRole.Title,
-                    fontSize = 16.sp,
+                    role = KomiTextRole.CardTitle,
                     color = colors.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    uppercase = false,
                 )
             }
 
@@ -225,7 +238,6 @@ private fun UnknownFormatSheet(
                     KomiText(
                         text = preview,
                         role = KomiTextRole.Mono,
-                        fontSize = 13.sp,
                         color = colors.onSurfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -270,18 +282,14 @@ private fun SummaryBucket(
             Column(modifier = Modifier.weight(1f)) {
                 KomiText(
                     text = title,
-                    role = KomiTextRole.Title,
-                    fontSize = 14.sp,
+                    role = KomiTextRole.ItemTitle,
                     color = colors.onSurface,
-                    fontWeight = FontWeight.Medium,
-                    uppercase = false,
                 )
 
                 if (!caption.isNullOrBlank()) {
                     KomiText(
                         text = caption,
                         role = KomiTextRole.Body,
-                        fontSize = 13.sp,
                         color = colors.onSurfaceVariant,
                     )
                 }
@@ -320,8 +328,6 @@ private fun SummaryBucket(
                     KomiText(
                         text = items[idx],
                         role = KomiTextRole.Body,
-                        fontSize = 13.sp,
-                        uppercase = false,
                         color = colors.onSurfaceVariant,
                     )
                 }

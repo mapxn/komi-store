@@ -10,11 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
 import zed.rainxch.core.presentation.components.text.KomiText
 import zed.rainxch.core.presentation.components.text.KomiTextRole
@@ -24,7 +23,11 @@ import zed.rainxch.details.presentation.components.StatItem
 import zed.rainxch.details.presentation.components.TextStatItem
 import zed.rainxch.githubstore.core.presentation.res.*
 
-fun LazyListScope.stats(repoStats: RepoStats) {
+fun LazyListScope.stats(
+    repoStats: RepoStats,
+    onOpenIssues: (() -> Unit)?,
+    onOpenSecurity: (() -> Unit)?,
+) {
     item {
         val colors = LocalPersonality.current.colors
         Spacer(Modifier.height(20.dp))
@@ -38,14 +41,22 @@ fun LazyListScope.stats(repoStats: RepoStats) {
         ) {
             KomiText(
                 text = stringResource(Res.string.details_stats_section),
-                role = KomiTextRole.Title,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 22.sp,
+                role = KomiTextRole.SectionTitle,
                 color = colors.onBackground,
-                uppercase = false,
             )
         }
 
+        StatsGrid(repoStats = repoStats, onOpenIssues = onOpenIssues, onOpenSecurity = onOpenSecurity)
+    }
+}
+
+@Composable
+private fun StatsGrid(
+    repoStats: RepoStats,
+    onOpenIssues: (() -> Unit)?,
+    onOpenSecurity: (() -> Unit)?,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             modifier = Modifier.height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
@@ -65,11 +76,9 @@ fun LazyListScope.stats(repoStats: RepoStats) {
                 label = stringResource(Res.string.issues),
                 stat = repoStats.openIssues,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                onClick = onOpenIssues,
             )
         }
-
-        Spacer(Modifier.height(10.dp))
-
         Row(
             modifier = Modifier.height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
@@ -85,6 +94,14 @@ fun LazyListScope.stats(repoStats: RepoStats) {
                 value = repoStats.license ?: stringResource(Res.string.license_none),
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
+            if (onOpenSecurity != null) {
+                TextStatItem(
+                    label = stringResource(Res.string.repo_pages_details_security_button),
+                    value = stringResource(Res.string.repo_pages_details_security_value),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    onClick = onOpenSecurity,
+                )
+            }
         }
     }
 }

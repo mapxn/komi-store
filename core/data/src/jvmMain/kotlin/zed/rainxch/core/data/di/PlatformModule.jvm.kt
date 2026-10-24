@@ -9,6 +9,7 @@ import zed.rainxch.core.data.local.db.AppDatabase
 import zed.rainxch.core.data.local.db.initDatabase
 import zed.rainxch.core.data.network.DesktopDigestVerifier
 import zed.rainxch.core.data.services.DesktopApkInspector
+import zed.rainxch.core.data.services.DesktopCrashLogSharer
 import zed.rainxch.core.data.services.DesktopDownloadProgressNotifier
 import zed.rainxch.core.data.services.DesktopDownloader
 import zed.rainxch.core.data.services.DesktopFileLocationsProvider
@@ -22,6 +23,7 @@ import zed.rainxch.core.data.services.DesktopUpdateScheduleManager
 import zed.rainxch.core.data.services.FileLocationsProvider
 import zed.rainxch.core.data.services.LocalizationManager
 import zed.rainxch.core.data.services.external.DesktopExternalAppScanner
+import zed.rainxch.core.data.services.installer.DesktopExternalInstallerRepository
 import zed.rainxch.core.data.utils.DesktopAppLauncher
 import zed.rainxch.core.data.utils.DesktopBrowserHelper
 import zed.rainxch.core.data.utils.DesktopClipboardHelper
@@ -32,7 +34,9 @@ import zed.rainxch.core.domain.helpers.ClipboardHelper
 import zed.rainxch.core.domain.helpers.ShareManager
 import zed.rainxch.core.domain.network.DigestVerifier
 import zed.rainxch.core.domain.network.Downloader
+import zed.rainxch.core.domain.repository.ExternalInstallerRepository
 import zed.rainxch.core.domain.system.ApkInspector
+import zed.rainxch.core.domain.system.CrashLogSharer
 import zed.rainxch.core.domain.system.DownloadProgressNotifier
 import zed.rainxch.core.domain.system.ExternalAppScanner
 import zed.rainxch.core.domain.system.Installer
@@ -52,6 +56,8 @@ actual val corePlatformModule =
             )
         }
 
+        single<ExternalInstallerRepository> { DesktopExternalInstallerRepository() }
+
         single<Installer> {
             DesktopInstaller(
                 platform = get(),
@@ -68,6 +74,10 @@ actual val corePlatformModule =
         single<zed.rainxch.core.domain.system.AggressiveOemDetector> {
             zed.rainxch.core.data.services
                 .DesktopAggressiveOemDetector()
+        }
+
+        single<CrashLogSharer> {
+            DesktopCrashLogSharer()
         }
 
         single<PackageMonitor> {

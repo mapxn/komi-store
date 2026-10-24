@@ -11,6 +11,7 @@ import zed.rainxch.core.data.local.db.AppDatabase
 import zed.rainxch.core.data.local.db.initDatabase
 import zed.rainxch.core.data.network.AndroidDigestVerifier
 import zed.rainxch.core.data.services.AndroidApkInspector
+import zed.rainxch.core.data.services.AndroidCrashLogSharer
 import zed.rainxch.core.data.services.AndroidDownloadProgressNotifier
 import zed.rainxch.core.data.services.AndroidDownloader
 import zed.rainxch.core.data.services.AndroidFileLocationsProvider
@@ -20,6 +21,7 @@ import zed.rainxch.core.data.services.AndroidLocalizationManager
 import zed.rainxch.core.data.services.AndroidPackageMonitor
 import zed.rainxch.core.data.services.AndroidPendingInstallNotifier
 import zed.rainxch.core.data.services.AndroidUpdateScheduleManager
+import zed.rainxch.core.data.services.DownloadForegroundController
 import zed.rainxch.core.data.services.DownloadNotificationObserver
 import zed.rainxch.core.data.services.FileLocationsProvider
 import zed.rainxch.core.data.services.LocalizationManager
@@ -28,6 +30,7 @@ import zed.rainxch.core.data.services.external.AndroidExternalAppScanner
 import zed.rainxch.core.data.services.external.InstallerSourceClassifier
 import zed.rainxch.core.data.services.external.ManifestHintExtractor
 import zed.rainxch.core.data.services.installer.AndroidInstallerStatusProvider
+import zed.rainxch.core.data.services.installer.ExternalInstallerDiscovery
 import zed.rainxch.core.data.services.installer.SilentInstallerDispatcher
 import zed.rainxch.core.data.services.root.RootServiceManager
 import zed.rainxch.core.data.services.shizuku.ShizukuServiceManager
@@ -41,7 +44,9 @@ import zed.rainxch.core.domain.helpers.ClipboardHelper
 import zed.rainxch.core.domain.helpers.ShareManager
 import zed.rainxch.core.domain.network.DigestVerifier
 import zed.rainxch.core.domain.network.Downloader
+import zed.rainxch.core.domain.repository.ExternalInstallerRepository
 import zed.rainxch.core.domain.system.ApkInspector
+import zed.rainxch.core.domain.system.CrashLogSharer
 import zed.rainxch.core.domain.system.DownloadOrchestrator
 import zed.rainxch.core.domain.system.DownloadProgressNotifier
 import zed.rainxch.core.domain.system.ExternalAppScanner
@@ -102,6 +107,10 @@ actual val corePlatformModule =
             }
         }
 
+        single<ExternalInstallerRepository> {
+            ExternalInstallerDiscovery(androidContext())
+        }
+
         single<InstallerStatusProvider> {
             AndroidInstallerStatusProvider(
                 shizukuServiceManager = get(),
@@ -120,6 +129,10 @@ actual val corePlatformModule =
                 .AndroidAggressiveOemDetector(context = androidContext())
         }
 
+        single<CrashLogSharer> {
+            AndroidCrashLogSharer(context = androidContext())
+        }
+
         single<PendingInstallNotifier> {
             AndroidPendingInstallNotifier(context = androidContext())
         }
@@ -132,6 +145,7 @@ actual val corePlatformModule =
             DownloadNotificationObserver(
                 orchestrator = get<DownloadOrchestrator>(),
                 notifier = get<DownloadProgressNotifier>(),
+                foregroundController = DownloadForegroundController(androidContext()),
             )
         }
 

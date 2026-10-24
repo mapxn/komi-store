@@ -294,6 +294,10 @@ class DownloadLifecycleTest {
             path: String,
             version: String?,
             assetName: String?,
+            releaseId: Long?,
+            assetId: Long?,
+            releasePublishedAt: String?,
+            assetDigest: String?,
         ) = Unit
 
         override suspend fun discardParkedInstall(
@@ -333,6 +337,7 @@ class DownloadLifecycleTest {
             newReleaseId: Long?,
             newAssetId: Long?,
             newAssetDigest: String?,
+            newReleasePublishedAt: String?,
             newAssetName: String?,
             newAssetUrl: String?,
             newVersionName: String,
@@ -351,6 +356,11 @@ class DownloadLifecycleTest {
             installedVersionName: String?,
             installedVersionCode: Long,
             isUpdateAvailable: Boolean,
+        ) = Unit
+
+        override suspend fun updateSigningFingerprint(
+            packageName: String,
+            signingFingerprint: String,
         ) = Unit
 
         override suspend fun updatePendingStatus(
@@ -422,6 +432,8 @@ class DownloadLifecycleTest {
         ) = Unit
 
         override fun markCompleted(packageName: String) = Unit
+
+        override fun onAppResumed() = Unit
     }
 
     private object StubAssetSourceRefetcher : AssetSourceRefetcher {

@@ -2,6 +2,7 @@ package zed.rainxch.tweaks.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CancellationException
@@ -22,17 +23,20 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.getString
 import zed.rainxch.core.domain.isDesktop
 import zed.rainxch.core.domain.logging.KomiStoreLogger
+import zed.rainxch.core.domain.model.installation.InstallerType
 import zed.rainxch.core.domain.model.settings.ProxyConfig
 import zed.rainxch.core.domain.model.settings.ProxyScope
 import zed.rainxch.core.domain.model.settings.TranslationProvider
 import zed.rainxch.core.domain.network.ProxyTestOutcome
 import zed.rainxch.core.domain.network.ProxyTester
 import zed.rainxch.core.domain.repository.CacheRepository
+import zed.rainxch.core.domain.repository.ExternalInstallerRepository
 import zed.rainxch.core.domain.repository.ProxyRepository
 import zed.rainxch.core.domain.repository.SeenReposRepository
 import zed.rainxch.core.domain.repository.TweaksRepository
 import zed.rainxch.core.domain.system.AggressiveOemDetector
 import zed.rainxch.core.domain.system.AppVersionInfo
+import zed.rainxch.core.domain.system.CrashLogSharer
 import zed.rainxch.core.domain.system.InstallerStatusProvider
 import zed.rainxch.core.domain.system.UpdateScheduleManager
 import zed.rainxch.githubstore.core.presentation.res.Res
@@ -56,8 +60,10 @@ import zed.rainxch.tweaks.presentation.model.ProxyType
 import zed.rainxch.tweaks.presentation.utils.TweaksDeepLinkBus
 import kotlin.time.Duration.Companion.milliseconds
 
+@Suppress("LongParameterList")
 class TweaksViewModel(
     private val tweaksRepository: TweaksRepository,
+    private val externalInstallerRepository: ExternalInstallerRepository,
     private val appVersionInfo: AppVersionInfo,
     private val installerStatusProvider: InstallerStatusProvider,
     private val proxyRepository: ProxyRepository,
@@ -67,6 +73,7 @@ class TweaksViewModel(
     private val logger: KomiStoreLogger,
     private val aggressiveOemDetector: AggressiveOemDetector,
     private val cacheRepository: CacheRepository,
+    private val crashLogSharer: CrashLogSharer,
 ) : ViewModel() {
     private companion object {
         private const val BATTERY_OPT_PREF_READ_TIMEOUT_MS: Long = 1_000
@@ -95,6 +102,7 @@ class TweaksViewModel(
             .onStart {
                 if (!hasLoadedInitialData) {
                     loadCurrentTheme()
+                    loadRepoLayout()
                     loadVersionName()
                     loadProxyConfig()
                     loadInstallerPreference()
@@ -105,9 +113,11 @@ class TweaksViewModel(
                     loadHideSeenEnabled()
                     loadScrollbarEnabled()
                     loadContentWidth()
+                    loadDisplayModeId()
                     loadTranslationSettings()
                     loadAppLanguage()
                     loadAutoTranslate()
+                    loadCrashLogAvailability()
 
                     observeShizukuStatus()
                     observeDhizukuStatus()
@@ -170,6 +180,21 @@ class TweaksViewModel(
 
     private fun loadVersionName() {
         _state.update { it.copy(versionName = appVersionInfo.versionName) }
+    }
+
+    private fun loadCrashLogAvailability() {
+        viewModelScope.launch {
+            val hasCrashLog = crashLogSharer.hasCrashLog()
+            _state.update { it.copy(hasCrashLog = hasCrashLog) }
+        }
+    }
+
+    private fun loadRepoLayout() {
+        viewModelScope.launch {
+            tweaksRepository.getRepoGridLayout().collect { grid ->
+                _state.update { it.copy(isRepoGridLayout = grid) }
+            }
+        }
     }
 
     private fun loadCurrentTheme() {
@@ -317,11 +342,18 @@ class TweaksViewModel(
 
     private fun loadInstallerPreference() {
         viewModelScope.launch {
-            tweaksRepository.getInstallerType().collect { type ->
-                _state.update {
-                    it.copy(installerType = type)
-                }
+            tweaksRepository.getExternalInstallerPackage().collect { packageName ->
+                _state.update { it.copy(externalInstallerPackage = packageName) }
             }
+        }
+        viewModelScope.launch {
+            tweaksRepository.getInstallerType().collect { type ->
+                _state.update { it.copy(installerType = type) }
+            }
+        }
+        viewModelScope.launch {
+            val installers = externalInstallerRepository.listInstallers()
+            _state.update { it.copy(externalInstallers = installers.toImmutableList()) }
         }
     }
 
@@ -458,6 +490,14 @@ class TweaksViewModel(
         viewModelScope.launch {
             tweaksRepository.getContentWidth().collect { width ->
                 _state.update { it.copy(contentWidth = width) }
+            }
+        }
+    }
+
+    private fun loadDisplayModeId() {
+        viewModelScope.launch {
+            tweaksRepository.getDisplayModeId().collect { modeId ->
+                _state.update { it.copy(displayModeId = modeId) }
             }
         }
     }
@@ -604,6 +644,12 @@ class TweaksViewModel(
                 }
             }
 
+            is TweaksAction.OnRepoLayoutSelected -> {
+                viewModelScope.launch {
+                    tweaksRepository.setRepoGridLayout(action.grid)
+                }
+            }
+
             is TweaksAction.OnDarkThemeChange -> {
                 viewModelScope.launch {
                     tweaksRepository.setDarkTheme(action.isDarkTheme)
@@ -625,6 +671,12 @@ class TweaksViewModel(
             is TweaksAction.OnContentWidthSelected -> {
                 viewModelScope.launch {
                     tweaksRepository.setContentWidth(action.width)
+                }
+            }
+
+            is TweaksAction.OnDisplayModeSelected -> {
+                viewModelScope.launch {
+                    tweaksRepository.setDisplayModeId(action.modeId)
                 }
             }
 
@@ -770,9 +822,29 @@ class TweaksViewModel(
                 }
             }
 
+            is TweaksAction.OnExternalInstallerPickerOpenChanged -> {
+                _state.update { it.copy(externalInstallerPickerOpen = action.open) }
+                if (action.open) {
+                    viewModelScope.launch {
+                        val installers = externalInstallerRepository.listInstallers()
+                        _state.update { it.copy(externalInstallers = installers.toImmutableList()) }
+                    }
+                }
+            }
+
+            is TweaksAction.OnExternalInstallerSelected -> {
+                viewModelScope.launch {
+                    tweaksRepository.setExternalInstallerPackage(action.packageName)
+                    _state.update { it.copy(externalInstallerPickerOpen = false) }
+                }
+            }
+
             is TweaksAction.OnInstallerTypeSelected -> {
                 viewModelScope.launch {
                     tweaksRepository.setInstallerType(action.type)
+                }
+                if (action.type == InstallerType.THIRD_PARTY && _state.value.externalInstallerPackage.isBlank()) {
+                    onAction(TweaksAction.OnExternalInstallerPickerOpenChanged(true))
                 }
             }
 
@@ -945,6 +1017,10 @@ class TweaksViewModel(
 
             TweaksAction.OnFeedbackDismiss -> {
                 _state.update { it.copy(isFeedbackSheetVisible = false) }
+            }
+
+            TweaksAction.OnShareCrashLogClick -> {
+                crashLogSharer.shareLatest()
             }
 
             TweaksAction.OnLanguagePickerOpen -> {

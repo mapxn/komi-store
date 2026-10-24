@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
+import org.intellij.markdown.parser.CancellationToken
 import org.intellij.markdown.parser.MarkdownParser
 import org.jetbrains.compose.resources.getString
 import zed.rainxch.details.domain.repository.DetailsRepository
@@ -81,13 +82,13 @@ class MarkdownViewerViewModel(
                     )
                 }
                 recompose()
-            }.onFailure { e ->
+            }.onFailure { _ ->
                 _state.update {
                     it.copy(
                         translation =
                             it.translation.copy(
                                 isTranslating = false,
-                                error = e.message ?: getString(Res.string.translation_failed),
+                                error = getString(Res.string.translation_failed),
                             ),
                     )
                 }
@@ -158,8 +159,8 @@ class MarkdownViewerViewModel(
                 } else {
                     _state.update { it.copy(isLoading = false, errorMessage = getString(Res.string.failed_to_load)) }
                 }
-            }.onFailure { e ->
-                _state.update { it.copy(isLoading = false, errorMessage = e.message ?: getString(Res.string.failed_to_load)) }
+            }.onFailure { _ ->
+                _state.update { it.copy(isLoading = false, errorMessage = getString(Res.string.failed_to_load)) }
             }
         }
     }
@@ -193,7 +194,11 @@ class MarkdownViewerViewModel(
 
     private fun chunkMarkdown(markdown: String): List<String> {
         val flavour = GFMFlavourDescriptor()
-        val parsedTree = MarkdownParser(flavour).buildMarkdownTreeFromString(markdown)
+        // Typed as CharSequence: the String overload is deprecated.
+        val text: CharSequence = markdown
+        val parsedTree =
+            MarkdownParser(flavour, cancellationToken = CancellationToken.NonCancellable)
+                .buildMarkdownTreeFromString(text)
         return parsedTree.children
             .map { node -> markdown.substring(node.startOffset, node.endOffset) }
             .filter { it.isNotBlank() }
