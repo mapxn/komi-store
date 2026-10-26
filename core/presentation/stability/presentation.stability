@@ -737,7 +737,7 @@ public fun zed.rainxch.core.presentation.components.cards.DiscoveryRepoCard(disc
     - index: STABLE (primitive type)
 
 @Composable
-public fun zed.rainxch.core.presentation.components.cards.KomiRepoCard(name: kotlin.String, owner: kotlin.String, language: kotlin.String, description: kotlin.String, platforms: kotlinx.collections.immutable.ImmutableList<zed.rainxch.core.domain.model.repository.DiscoveryPlatform>, stars: kotlin.Int, downloads: kotlin.Int, releasedAgoDays: kotlin.Int, onOpen: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, onLongPress: kotlin.Function0<kotlin.Unit>?, monogram: kotlin.String?, imageUrl: kotlin.String?, feed: zed.rainxch.core.presentation.components.cards.KomiRepoCardFeed, rank: kotlin.Int, version: kotlin.String?, dailyStars: kotlin.Int, compact: kotlin.Boolean, index: kotlin.Int, tilt: kotlin.Boolean, releasedAt: kotlin.String?): kotlin.Unit
+public fun zed.rainxch.core.presentation.components.cards.KomiRepoCard(name: kotlin.String, owner: kotlin.String, language: kotlin.String, description: kotlin.String, platforms: kotlinx.collections.immutable.ImmutableList<zed.rainxch.core.domain.model.repository.DiscoveryPlatform>, stars: kotlin.Int, downloads: kotlin.Int, releasedAgoDays: kotlin.Int, onOpen: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, onLongPress: kotlin.Function0<kotlin.Unit>?, monogram: kotlin.String?, imageUrl: kotlin.String?, feed: zed.rainxch.core.presentation.components.cards.KomiRepoCardFeed, rank: kotlin.Int, version: kotlin.String?, dailyStars: kotlin.Int, compact: kotlin.Boolean, index: kotlin.Int, tilt: kotlin.Boolean, releasedAt: kotlin.String?, ratingAverage: kotlin.Double?, ratingCount: kotlin.Int): kotlin.Unit
   skippable: true
   restartable: true
   params:
@@ -762,6 +762,8 @@ public fun zed.rainxch.core.presentation.components.cards.KomiRepoCard(name: kot
     - index: STABLE (primitive type)
     - tilt: STABLE (primitive type)
     - releasedAt: STABLE (class with no mutable properties)
+    - ratingAverage: STABLE (class with no mutable properties)
+    - ratingCount: STABLE (primitive type)
 
 @Composable
 private fun zed.rainxch.core.presentation.components.cards.MonogramText(monogram: kotlin.String, color: androidx.compose.ui.graphics.Color, fontSize: androidx.compose.ui.unit.TextUnit): kotlin.Unit
@@ -1790,6 +1792,201 @@ public fun zed.rainxch.core.presentation.components.refresh.KomiPullToRefresh(is
 
 @Composable
 public fun zed.rainxch.core.presentation.components.refresh.drivesPullToRefresh(): androidx.compose.ui.Modifier
+  skippable: false
+  restartable: false
+  params:
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.AverageBadge(average: kotlin.Double?, playEntrance: kotlin.Boolean): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - average: STABLE (class with no mutable properties)
+    - playEntrance: STABLE (primitive type)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.AverageText(average: kotlin.Double?, color: androidx.compose.ui.graphics.Color): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - average: STABLE (class with no mutable properties)
+    - color: STABLE (marked @Stable or @Immutable)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.BarTrack(fraction: kotlin.Function0<kotlin.Float>, dimmed: kotlin.Boolean, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - fraction: STABLE (function type)
+    - dimmed: STABLE (primitive type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+public fun zed.rainxch.core.presentation.components.reviews.CompactRating(average: kotlin.Double, count: kotlin.Int, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - average: STABLE (primitive type)
+    - count: STABLE (primitive type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.DeveloperBadge(): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.ExpandableText(text: kotlin.String): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - text: STABLE (String is immutable)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.InputStar(star: kotlin.Int, filled: kotlin.Boolean, selected: kotlin.Boolean, popDelayMillis: kotlin.Int, onClick: kotlin.Function0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - star: STABLE (primitive type)
+    - filled: STABLE (primitive type)
+    - selected: STABLE (primitive type)
+    - popDelayMillis: STABLE (primitive type)
+    - onClick: STABLE (function type)
+
+@Composable
+public fun zed.rainxch.core.presentation.components.reviews.RatingSummaryPanel(summary: zed.rainxch.core.presentation.components.reviews.RatingSummaryUi, modifier: androidx.compose.ui.Modifier, selectedStars: kotlin.Int?, onStarsClick: kotlin.Function1<kotlin.Int, kotlin.Unit>?): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - summary: STABLE (marked @Stable or @Immutable)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - selectedStars: STABLE (class with no mutable properties)
+    - onStarsClick: STABLE (function type)
+
+@Composable
+internal fun zed.rainxch.core.presentation.components.reviews.ReplyBubble(reply: zed.rainxch.core.presentation.components.reviews.ReviewReplyUi, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - reply: STABLE (marked @Stable or @Immutable)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+internal fun zed.rainxch.core.presentation.components.reviews.ReviewAvatar(url: kotlin.String?, size: androidx.compose.ui.unit.Dp, placeholder: androidx.compose.ui.graphics.Color): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - url: STABLE (class with no mutable properties)
+    - size: STABLE (marked @Stable or @Immutable)
+    - placeholder: STABLE (marked @Stable or @Immutable)
+
+@Composable
+public fun zed.rainxch.core.presentation.components.reviews.ReviewCard(review: zed.rainxch.core.presentation.components.reviews.ReviewUi, modifier: androidx.compose.ui.Modifier, onVote: kotlin.Function1<zed.rainxch.core.domain.model.reviews.ReviewVote, kotlin.Unit>?, onReport: kotlin.Function0<kotlin.Unit>?, onEdit: kotlin.Function0<kotlin.Unit>?, onDelete: kotlin.Function0<kotlin.Unit>?, onReply: kotlin.Function0<kotlin.Unit>?, onDeleteReply: kotlin.Function0<kotlin.Unit>?): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - review: STABLE (marked @Stable or @Immutable)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - onVote: STABLE (function type)
+    - onReport: STABLE (function type)
+    - onEdit: STABLE (function type)
+    - onDelete: STABLE (function type)
+    - onReply: STABLE (function type)
+    - onDeleteReply: STABLE (function type)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.ReviewMenu(onReport: kotlin.Function0<kotlin.Unit>?, onEdit: kotlin.Function0<kotlin.Unit>?, onDelete: kotlin.Function0<kotlin.Unit>?, onReply: kotlin.Function0<kotlin.Unit>?, onDeleteReply: kotlin.Function0<kotlin.Unit>?): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - onReport: STABLE (function type)
+    - onEdit: STABLE (function type)
+    - onDelete: STABLE (function type)
+    - onReply: STABLE (function type)
+    - onDeleteReply: STABLE (function type)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.ReviewTags(review: zed.rainxch.core.presentation.components.reviews.ReviewUi): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - review: STABLE (marked @Stable or @Immutable)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.ScoreSegment(score: kotlin.Int, voted: kotlin.Boolean, alone: kotlin.Boolean): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - score: STABLE (primitive type)
+    - voted: STABLE (primitive type)
+    - alone: STABLE (primitive type)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.StarBar(stars: kotlin.Int, count: kotlin.Int, fraction: kotlin.Float, selected: kotlin.Boolean, dimmed: kotlin.Boolean, entranceDelayMillis: kotlin.Int?, onClick: kotlin.Function0<kotlin.Unit>?): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - stars: STABLE (primitive type)
+    - count: STABLE (primitive type)
+    - fraction: STABLE (primitive type)
+    - selected: STABLE (primitive type)
+    - dimmed: STABLE (primitive type)
+    - entranceDelayMillis: STABLE (class with no mutable properties)
+    - onClick: STABLE (function type)
+
+@Composable
+public fun zed.rainxch.core.presentation.components.reviews.StarRating(rating: kotlin.Double, modifier: androidx.compose.ui.Modifier, starSize: androidx.compose.ui.unit.Dp): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - rating: STABLE (primitive type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - starSize: STABLE (marked @Stable or @Immutable)
+
+@Composable
+public fun zed.rainxch.core.presentation.components.reviews.StarRatingInput(rating: kotlin.Int, onRatingChange: kotlin.Function1<kotlin.Int, kotlin.Unit>, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - rating: STABLE (primitive type)
+    - onRatingChange: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+internal fun zed.rainxch.core.presentation.components.reviews.VotePill(score: kotlin.Int, vote: zed.rainxch.core.domain.model.reviews.ReviewVote?, onVote: kotlin.Function1<zed.rainxch.core.domain.model.reviews.ReviewVote, kotlin.Unit>?, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - score: STABLE (primitive type)
+    - vote: STABLE (class with no mutable properties)
+    - onVote: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.VoteSegment(vote: zed.rainxch.core.domain.model.reviews.ReviewVote, selected: kotlin.Boolean, onVote: kotlin.Function1<zed.rainxch.core.domain.model.reviews.ReviewVote, kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - vote: STABLE (class with no mutable properties)
+    - selected: STABLE (primitive type)
+    - onVote: STABLE (function type)
+
+@Composable
+public fun zed.rainxch.core.presentation.components.reviews.formatAverage(average: kotlin.Double): kotlin.String
+  skippable: false
+  restartable: false
+  params:
+    - average: STABLE (primitive type)
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.icon(): androidx.compose.ui.graphics.vector.ImageVector
+  skippable: false
+  restartable: false
+  params:
+
+@Composable
+private fun zed.rainxch.core.presentation.components.reviews.label(): kotlin.String
   skippable: false
   restartable: false
   params:

@@ -195,6 +195,19 @@ private fun MainDetailPane(
         onNavigateToMarkdownViewer = { url ->
             navController.navigate(GithubStoreGraph.MarkdownViewerScreen(url))
         },
+        onNavigateToReviews = { owner, repo, sourceHost, openComposer, composerRating, version, appLabel ->
+            navController.navigate(
+                GithubStoreGraph.ReviewsScreen(
+                    owner = owner,
+                    repo = repo,
+                    sourceHost = sourceHost,
+                    openComposer = openComposer,
+                    composerRating = composerRating,
+                    version = version,
+                    appLabel = appLabel,
+                ),
+            )
+        },
         viewModel = viewModel,
     )
 }

@@ -76,6 +76,8 @@ import zed.rainxch.repopages.presentation.issuedetail.IssueDetailRoot
 import zed.rainxch.repopages.presentation.issues.IssuesRoot
 import zed.rainxch.repopages.presentation.pulls.PullsRoot
 import zed.rainxch.repopages.presentation.security.SecurityRoot
+import zed.rainxch.reviews.presentation.ReviewsRoot
+import zed.rainxch.reviews.presentation.moderation.ModerationRoot
 import zed.rainxch.search.presentation.SearchRoot
 import zed.rainxch.search.presentation.SearchViewModel
 import zed.rainxch.starred.presentation.StarredReposRoot
@@ -485,6 +487,19 @@ fun AppNavigation(
                                                 ),
                                             )
                                         },
+                                        onNavigateToReviews = { owner, repo, sourceHost, openComposer, composerRating, version, appLabel ->
+                                            navController.navigate(
+                                                GithubStoreGraph.ReviewsScreen(
+                                                    owner = owner,
+                                                    repo = repo,
+                                                    sourceHost = sourceHost,
+                                                    openComposer = openComposer,
+                                                    composerRating = composerRating,
+                                                    version = version,
+                                                    appLabel = appLabel,
+                                                ),
+                                            )
+                                        },
                                         onNavigateToMarkdownViewer = { url ->
                                             navController.navigate(
                                                 GithubStoreGraph.MarkdownViewerScreen(
@@ -586,6 +601,48 @@ fun AppNavigation(
                                     repo = args.repo,
                                     sourceHost = args.sourceHost,
                                     onNavigateBack = { navController.navigateUp() },
+                                )
+                            }
+
+                            composable<GithubStoreGraph.ReviewsScreen> { backStackEntry ->
+                                val args =
+                                    backStackEntry.toRoute<GithubStoreGraph.ReviewsScreen>()
+                                ReviewsRoot(
+                                    onNavigateBack = { navController.navigateUp() },
+                                    onNavigateToAuthentication = {
+                                        navController.navigate(GithubStoreGraph.AuthenticationScreen)
+                                    },
+                                    onNavigateToModeration = {
+                                        navController.navigate(GithubStoreGraph.ReviewModerationScreen)
+                                    },
+                                    viewModel =
+                                        koinViewModel {
+                                            parametersOf(
+                                                args.owner,
+                                                args.repo,
+                                                args.sourceHost,
+                                                args.openComposer,
+                                                args.composerRating,
+                                                args.version,
+                                                args.appLabel,
+                                            )
+                                        },
+                                )
+                            }
+
+                            composable<GithubStoreGraph.ReviewModerationScreen> {
+                                ModerationRoot(
+                                    onNavigateBack = { navController.navigateUp() },
+                                    onOpenRepo = { repo ->
+                                        navController.navigate(
+                                            GithubStoreGraph.ReviewsScreen(
+                                                owner = repo.owner,
+                                                repo = repo.name,
+                                                sourceHost = repo.host,
+                                            ),
+                                        )
+                                    },
+                                    viewModel = koinViewModel(),
                                 )
                             }
 
@@ -715,9 +772,20 @@ fun AppNavigation(
                             composable<GithubStoreGraph.AuthenticationScreen> {
                                 AuthenticationRoot(
                                     onNavigateToHome = {
-                                        navController.navigate(GithubStoreGraph.ExploreScreen) {
-                                            popUpTo(0) {
-                                                inclusive = true
+                                        // Signing in to write a review goes back to it; the Reviews screen
+                                        // picks the session up and opens the composer it was asked for.
+                                        val fromReviews =
+                                            navController.previousBackStackEntry
+                                                ?.destination
+                                                ?.route
+                                                ?.contains("ReviewsScreen") == true
+                                        if (fromReviews) {
+                                            navController.navigateUp()
+                                        } else {
+                                            navController.navigate(GithubStoreGraph.ExploreScreen) {
+                                                popUpTo(0) {
+                                                    inclusive = true
+                                                }
                                             }
                                         }
                                     },

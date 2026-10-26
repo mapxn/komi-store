@@ -46,6 +46,7 @@ import zed.rainxch.core.presentation.components.GitHubStoreImage
 import zed.rainxch.core.presentation.components.chips.KomiChip
 import zed.rainxch.core.presentation.components.chips.KomiChipKind
 import zed.rainxch.core.presentation.components.chips.KomiChipSize
+import zed.rainxch.core.presentation.components.reviews.CompactRating
 import zed.rainxch.core.presentation.components.surfaces.KomiScreentone
 import zed.rainxch.core.presentation.components.surfaces.KomiSurface
 import zed.rainxch.core.presentation.components.surfaces.KomiSurfaceElevation
@@ -93,6 +94,8 @@ fun KomiRepoCard(
     index: Int = 0,
     tilt: Boolean = false,
     releasedAt: String? = null,
+    ratingAverage: Double? = null,
+    ratingCount: Int = 0,
 ) {
     val colors = LocalPersonality.current.colors
     val tiltDeg =
@@ -152,6 +155,14 @@ fun KomiRepoCard(
                                 maxLines = 1,
                             )
                         }
+                    }
+                    // The review rating sits apart from the stats row, whose star is GitHub stars.
+                    if (ratingAverage != null && ratingCount > 0) {
+                        CompactRating(
+                            average = ratingAverage,
+                            count = ratingCount,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
                     }
                 }
                 if (!compact) {
